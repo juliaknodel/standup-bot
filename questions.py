@@ -1,10 +1,10 @@
 import os
-from team import get_id
+from team import get_team_id
 
 
 def add_question(update, context):
     chat_id = update.effective_chat.id
-    team_id = get_id(update)
+    team_id = get_team_id(update)
     if team_id is "":
         context.bot.send_message(chat_id=chat_id, text="Сначала зарегистрируйте команду (/new_team) "
                                                        "или введите id вашей команды (/set_id [id])")
@@ -23,7 +23,7 @@ def add_question(update, context):
 
 def show_questions_list(update, context):
     chat_id = update.effective_chat.id
-    team_id = get_id(update)
+    team_id = get_team_id(update)
     if team_id is "":
         context.bot.send_message(chat_id=chat_id, text="Сначала зарегистрируйте команду (/new_team) "
                                                        "или введите id вашей команды (/set_id [id])")
