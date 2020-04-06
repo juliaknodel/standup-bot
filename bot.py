@@ -27,6 +27,7 @@ def help(update, context):
                                                                     "/set_id [ID] - регистрация в существующей команде")
 
 
+
 bot = telegram.Bot(token=TOKEN)
 updater = Updater(token=TOKEN, use_context=True)
 
@@ -54,5 +55,9 @@ dispatcher.add_handler(new_team_handler)
 # участник сам себя приписывает к команде используя id команды
 set_id_handler = CommandHandler('set_id', set_id)
 dispatcher.add_handler(set_id_handler)
+
+# назначение дней стендапов
+set_standups_handler = CommandHandler('set_standups', set_standups)
+dispatcher.add_handler(set_standups_handler)
 
 updater.start_polling()
