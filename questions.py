@@ -38,3 +38,24 @@ def show_questions_list(update, context):
                 context.bot.send_message(chat_id=chat_id, text=text)
         else:
             context.bot.send_message(chat_id=chat_id, text='Список вопросов пока пуст.')
+
+
+DAYS = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"]
+def set_standups(update, context):
+    args = context.args
+    args_number = len(args)
+    file_name = get_team_id(update) + "_standups.txt"
+    with open(file_name, 'w') as f:
+        if (args_number % 2 != 0):
+            context.bot.send_message(chat_id=update.effective_chat.id,
+                                     text="Недостаточное количество входных данных.")
+            return
+        for arg_ind in range(0, args_number - 1, 2):
+            if args[arg_ind] not in DAYS:
+                context.bot.send_message(chat_id=update.effective_chat.id,
+                                         text="Проверьте написание дней недели "
+                                              "на соответствие формату.")
+                return
+            f.write(args[arg_ind] + ' ' + args[arg_ind + 1] + '\n')
+    context.bot.send_message(chat_id=update.effective_chat.id,
+                             text="Расписание стендапов обновлено.")
