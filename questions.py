@@ -41,12 +41,14 @@ def show_questions_list(update, context):
 
 
 DAYS = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"]
+
+
 def set_standups(update, context):
     args = context.args
     args_number = len(args)
     file_name = get_team_id(update) + "_standups.txt"
     with open(file_name, 'w') as f:
-        if (args_number % 2 != 0):
+        if args_number % 2 != 0:
             context.bot.send_message(chat_id=update.effective_chat.id,
                                      text="Недостаточное количество входных данных.")
             return
