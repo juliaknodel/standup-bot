@@ -7,7 +7,7 @@ from questions import add_question, show_questions_list, set_standups
 from team import new_team, set_id
 
 
-TOKEN = "TOKEN"
+TOKEN = "1088931148:AAHC_khz17kUrPqQl93U_-EjgyN2mOcfHIw"
 
 
 def start(update, context):
