@@ -3,8 +3,9 @@ from telegram.ext import Updater
 import logging
 from telegram.ext import CommandHandler
 
-from questions import *
-from team import *
+from questions import add_question, show_questions_list, set_standups
+from team import new_team, set_id
+
 
 TOKEN = "TOKEN"
 
@@ -14,7 +15,7 @@ def start(update, context):
                                                                     "Если ваша команда уже зарегистрирована, "
                                                                     "то введите /set_id <id>.\n"
                                                                     "Чтобы зарегистрировать команду, введите "
-                                                                    "/new_team.\n"                                                  
+                                                                    "/new_team.\n"
                                                                     "Чтобы узнать что я могу, вызовите команду /help.")
 
 
@@ -25,7 +26,6 @@ def help(update, context):
                                                                     "возвращает список всех вопросов для команды\n"
                                                                     "/new_team - регистрация новой команды\n"
                                                                     "/set_id [ID] - регистрация в существующей команде")
-
 
 
 bot = telegram.Bot(token=TOKEN)
