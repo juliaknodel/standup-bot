@@ -40,22 +40,89 @@ def show_questions_list(update, context):
             context.bot.send_message(chat_id=chat_id, text='Список вопросов пока пуст.')
 
 
-DAYS = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"]
 def set_standups(update, context):
     args = context.args
     args_number = len(args)
-    file_name = get_team_id(update) + "_standups.txt"
-    with open(file_name, 'w') as f:
-        if (args_number % 2 != 0):
-            context.bot.send_message(chat_id=update.effective_chat.id,
-                                     text="Недостаточное количество входных данных.")
-            return
-        for arg_ind in range(0, args_number - 1, 2):
-            if args[arg_ind] not in DAYS:
-                context.bot.send_message(chat_id=update.effective_chat.id,
-                                         text="Проверьте написание дней недели "
-                                              "на соответствие формату.")
-                return
-            f.write(args[arg_ind] + ' ' + args[arg_ind + 1] + '\n')
-    context.bot.send_message(chat_id=update.effective_chat.id,
-                             text="Расписание стендапов обновлено.")
+    err_message = check_standups_input(args)
+    if err_message is not None:
+        context.bot.send_message(chat_id=update.effective_chat.id, text=err_message)
+        return
+    # TODO: write standups to database
+    context.bot.send_message(chat_id=update.effective_chat.id, text="Расписание стендапов обновлено.")
+
+
+ALL_DAYS = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"]
+def check_standups_input(args):
+    args_number = len(args)
+    standup_days = []
+    if args_number % 3 != 0:
+        return "Введено недостаточное количество входных данных."
+    for arg_ind in range(0, args_number, 3):
+        day_ind = arg_ind
+        time_ind = arg_ind + 1
+        period_ind = arg_ind + 2
+
+        if args[day_ind] not in ALL_DAYS:
+            return args[day_ind] + " - недопустимое значение дня недели."
+        if args[day_ind] in standup_days:
+            return "День " + args[day_ind] +" введен дважды. Это недопустимо.."
+        else:
+            standup_days.append(args[day_ind])
+
+        if is_time_value(args[time_ind]) is False:
+            return args[time_ind] + " - недопустимое значение времени."
+
+        if is_natural_number(args[period_ind]) is False:
+            return args[period_ind] + " - недопустимое значение периода стендапа."
+
+
+def is_time_value(str):
+    time_delimiter = ':'
+    try:
+        time_delimiter_ind = get_time_delimiter_ind(str, time_delimiter)
+        check_hours(str, time_delimiter_ind)
+        check_minutes(str, time_delimiter_ind)
+        return True
+    except ValueError:
+        return False
+
+
+def get_time_delimiter_ind(time, time_delimiter):
+    ind = 0
+    while ind < len(time):
+        if ind == len(time) - 1:
+            raise ValueError
+        if time[ind] == time_delimiter:
+            return ind
+        ind += 1
+
+
+def check_hours(time, time_delimiter_ind):
+    hours = time[0:time_delimiter_ind]
+    if int(hours) < 0 or int(hours) >= 24:
+        raise ValueError
+
+
+def check_minutes(time, time_delimiter_ind):
+    minutes = time[time_delimiter_ind + 1:len(time)]
+    if int(minutes) < 0 or int(minutes) >= 60:
+        raise ValueError
+
+
+def is_integer_number(str):
+    try:
+        number = int(str)
+        return True
+    except ValueError:
+        return False
+
+
+def is_natural_number(str):
+    try:
+        number = int(str)
+        if number <= 0:
+            return False
+        else:
+            return True
+    except ValueError:
+        return False

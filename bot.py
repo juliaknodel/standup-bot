@@ -6,7 +6,7 @@ from telegram.ext import CommandHandler
 from questions import *
 from team import *
 
-TOKEN = "TOKEN"
+TOKEN = "1088931148:AAHC_khz17kUrPqQl93U_-EjgyN2mOcfHIw"
 
 
 def start(update, context):
