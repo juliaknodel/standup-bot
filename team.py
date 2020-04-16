@@ -83,32 +83,6 @@ def set_id(update, context):
         db_users.update_one({'_id': user_db_id}, {'$addToSet': {'teams': team_db_id}})
         db_teams.update_one({'_id': team_db_id}, {'$addToSet': {'members': user_db_id}})
 
-    # chat_id = update.effective_chat.id
-    #
-    # if not context.args:
-    # context.bot.send_message(chat_id=chat_id, text="Пожалуйста, после команды введите id или "
-    # "зарегистрируйте новую команду")
-    # elif not os.path.isfile(str(context.args[0]) + '_questions.txt'):
-    # context.bot.send_message(chat_id=chat_id, text="Не существует команды с таким id")
-    # else:
-    # team_id = context.args[0]
-    # user_file_name = str(chat_id) + '_user.txt'
-    # members_file_name = team_id + '_members.txt'
-    #
-    # if member_already_in_team(members_file_name, chat_id):
-    # context.bot.send_message(chat_id=chat_id, text="Вы уже состоите в этой команде.")
-    # elif os.path.isfile(user_file_name):
-    # context.bot.send_message(chat_id=chat_id, text="Вы уже состоите в команде.\n"
-    # "На данный момент вы можете быть участником "
-    # "только одной команды")
-    # else:
-    # with open(user_file_name, 'w') as f:
-    # f.write('TEAM_ID: ' + team_id)
-    #
-    # with open(members_file_name, 'a') as f:
-    # f.write('MEMBER_ID: ' + str(chat_id) + '\n')
-    # context.bot.send_message(chat_id=chat_id, text="Теперь вы в команде!")
-
 
 def get_team_id(update):
     user_file_name = str(update.effective_user.id) + '_user.txt'
@@ -132,7 +106,7 @@ def member_already_in_team(file_name, member_id):
 
 
 def get_new_team_document():
-    team = {'members': [],
+    team = {'text': [],
             'questions': [],
             'schedule': [],
             'connect_chats': [],
