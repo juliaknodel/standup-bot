@@ -20,6 +20,7 @@ def new_team(update, context):
         # добавили нового юзера в дб
         admin_db_id = db_users.insert_one(user).inserted_id
     else:
+        # TODO проверка что участник уже состоит в данной команде
         admin_db_id = get_db_id_by_chat_id(admin_chat_id)
         # при снятии заглушки этот код:
         # context.bot.send_message(chat_id=admin_chat_id, text="О, у Вас новая команда!")
@@ -41,12 +42,6 @@ def new_team(update, context):
     context.bot.send_message(chat_id=admin_chat_id, text="ID вашей команды: " + str(team_db_id) +
                                                          "\nОстальные члены команды должны использовать его "
                                                          "при регистрации.")
-
-    # if os.path.isfile(user_file_name):
-    # context.bot.send_message(chat_id=chat_id, text="Вы уже состоите в команде.\n"
-    # "На данный момент вы можете быть участником "
-    # "только одной команды")
-    # return
 
 
 def set_id(update, context):
@@ -146,3 +141,8 @@ def is_valid_id(check_id):
         return o_id
     except (InvalidId, TypeError):
         return False
+
+
+def get_team_connect_chats(team_db_id):
+    connect_chats = collection.teams.find_one({'_id': team_db_id})['connect_chats']
+    return connect_chats
