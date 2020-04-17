@@ -88,6 +88,8 @@ def set_standups(update, context):
 
 
 ALL_DAYS = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"]
+
+
 def check_standups_input(args):
     args_number = len(args)
     standup_days = []
