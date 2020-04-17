@@ -122,7 +122,7 @@ def check_standups_input(args):
 
 def create_first_standup(team_db_id):
     # TODO: реализовать вычисление ближайшиего дня и заменить "пустые" аргументы вычисленными
-    standup = get_new_standup_document([], {}, "", "")
+    standup = get_new_standup_document([], [], "", "")
     standup_db_id = db_standups.insert_one(standup).inserted_id
     standups_db_id = [standup_db_id]
     db_teams.update_one({"_id": team_db_id}, {"$addToSet": {'standups': standups_db_id}})
