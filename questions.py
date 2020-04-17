@@ -4,6 +4,10 @@ from team import collection
 from team import existing_user
 
 
+db_teams = collection.teams
+db_standups = collection.standups
+
+
 def add_question(update, context):
     db_questions = collection.questions
     db_teams = collection.teams
@@ -82,25 +86,15 @@ def set_standups(update, context):
     if err_message is not None:
         context.bot.send_message(chat_id=update.effective_chat.id, text=err_message)
         return
+    # TODO: добавить проверку, в какую команду назначается расписание стендапов, если команд несколько
     # TODO: добавить проверку, является ли пользователь администратором в команде
-    write_standups_to_db(update, context)
+    team_db_id = get_team_db_id(update.effective_chat.id)
+    write_schedule_to_db(context.args, team_db_id)
+    create_first_standup(team_db_id)
     context.bot.send_message(chat_id=update.effective_chat.id, text="Расписание стендапов обновлено.")
 
 
-def write_standups_to_db(update, context):
-    args = context.args
-    args_number = len(args)
-    user_chat_id = update.effective_chat.id
-    team_db_id = get_team_db_id(user_chat_id)
-    standups = []
-    for arg_ind in range(0, args_number, 3):
-        day_ind = arg_ind
-        time_ind = arg_ind + 1
-        period_ind = arg_ind + 2
-        standups.append({"day" : args[day_ind], "time" : args[time_ind], "period" : args[period_ind]})
-    collection.teams.update_one({"_id" : team_db_id}, {"$set" : {"standups" : standups}})
-
-
+# TODO: упростить формат ввода дней (сопоставить дням натуральные числа от 1 до 7, прописать соответствие в /help)
 ALL_DAYS = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"]
 def check_standups_input(args):
     args_number = len(args)
@@ -124,6 +118,33 @@ def check_standups_input(args):
 
         if is_natural_number(args[period_ind]) is False:
             return args[period_ind] + " - недопустимое значение периода стендапа."
+
+
+def create_first_standup(team_db_id):
+    # TODO: реализовать вычисление ближайшиего дня и заменить "пустые" аргументы вычисленными
+    standup = get_new_standup_document([], {}, "", "")
+    standup_db_id = db_standups.insert_one(standup).inserted_id
+    standups_db_id = [standup_db_id]
+    db_teams.update_one({"_id": team_db_id}, {"$addToSet": {'standups': standups_db_id}})
+
+
+def get_new_standup_document(questions, answers, date, time):
+    standup = {'questions': questions,
+               'answers': answers,
+               'date': date,
+               'time': time}
+    return standup
+
+
+def write_schedule_to_db(args, team_db_id):
+    args_number = len(args)
+    schedule = []
+    for arg_ind in range(0, args_number, 3):
+        day_ind = arg_ind
+        time_ind = arg_ind + 1
+        period_ind = arg_ind + 2
+        schedule.append({"day": args[day_ind], "time": args[time_ind], "period": args[period_ind]})
+    collection.teams.update_one({"_id": team_db_id}, {"$set": {"schedule": schedule}})
 
 
 def is_time_value(str):
@@ -176,3 +197,13 @@ def is_natural_number(str):
             return True
     except ValueError:
         return False
+
+
+# TODO: реализовать функцию отправки ответа
+def answer(update, context):
+    if is_possible_to_ans() is False:
+        return
+
+# TODO: реализовать функцию проверки возможности отправить ответ
+def is_possible_to_ans():
+    return False

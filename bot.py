@@ -3,7 +3,7 @@ from telegram.ext import Updater
 import logging
 from telegram.ext import CommandHandler
 
-from questions import add_question, show_questions_list, set_standups
+from questions import add_question, show_questions_list, set_standups, answer
 from team import new_team, set_id
 
 
@@ -25,7 +25,16 @@ def help(update, context):
                                                                     "/question_list - "
                                                                     "возвращает список всех вопросов для команды\n"
                                                                     "/new_team - регистрация новой команды\n"
-                                                                    "/set_id [ID] - регистрация в существующей команде")
+                                                                    "/set_id [ID] - регистрация в существующей "
+                                                                    "команде\n"
+                                                                    "/set_standups - назначение расписания стендапов "
+                                                                    "(формат записи запроса: [DAY] [TIME] [PERIOD], "
+                                                                    "где [DAY] должен быть записан как SUNDAY, "
+                                                                    "MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY или "
+                                                                    "SATURDAY, [TIME] записывается в формате [HOURS]:"
+                                                                    "[MINUTES] (например, 9:23, но не 09:23), "
+                                                                    "[PERIOD] - количество недель между стендапами в "
+                                                                    "данный день недели.")
 
 
 bot = telegram.Bot(token=TOKEN)
@@ -59,5 +68,9 @@ dispatcher.add_handler(set_id_handler)
 # назначение дней стендапов
 set_standups_handler = CommandHandler('set_standups', set_standups)
 dispatcher.add_handler(set_standups_handler)
+
+# отправка ответа на вопросы
+set_answer_handler = CommandHandler('answer', answer)
+dispatcher.add_handler(set_answer_handler)
 
 updater.start_polling()
