@@ -78,20 +78,34 @@ def get_team_questions_list(team_db_id):
 
 def set_standups(update, context):
     args = context.args
-    args_number = len(args)
     err_message = check_standups_input(args)
     if err_message is not None:
         context.bot.send_message(chat_id=update.effective_chat.id, text=err_message)
         return
-    # TODO: write standups to database
+    # TODO: добавить проверку, является ли пользователь администратором в команде
+    write_standups_to_db(update, context)
     context.bot.send_message(chat_id=update.effective_chat.id, text="Расписание стендапов обновлено.")
+
+
+def write_standups_to_db(update, context):
+    args = context.args
+    args_number = len(args)
+    user_chat_id = update.effective_chat.id
+    team_db_id = get_team_db_id(user_chat_id)
+    standups = []
+    for arg_ind in range(0, args_number, 3):
+        day_ind = arg_ind
+        time_ind = arg_ind + 1
+        period_ind = arg_ind + 2
+        standups.append({"day" : args[day_ind], "time" : args[time_ind], "period" : args[period_ind]})
+    collection.teams.update_one({"_id" : team_db_id}, {"$set" : {"standups" : standups}})
 
 
 ALL_DAYS = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"]
 def check_standups_input(args):
     args_number = len(args)
     standup_days = []
-    if args_number % 3 != 0:
+    if args_number == 0 or args_number % 3 != 0:
         return "Введено недостаточное количество входных данных."
     for arg_ind in range(0, args_number, 3):
         day_ind = arg_ind
