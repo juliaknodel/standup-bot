@@ -3,7 +3,8 @@ from telegram.ext import Updater
 import logging
 from telegram.ext import CommandHandler
 
-from questions import add_question, show_questions_list, set_standups, answer
+from questions import add_question, show_questions_list
+from standups import set_standups, answer
 from team import new_team, set_id
 
 
@@ -40,8 +41,26 @@ def help(update, context):
 bot = telegram.Bot(token=TOKEN)
 updater = Updater(token=TOKEN, use_context=True)
 
+j = updater.job_queue
+
+
+# def callback_alarm(context: telegram.ext.CallbackContext):
+#     chat_id = context.job.context
+#     context.bot.send_message(chat_id=chat_id, text=str(chat_id))
+#
+#
+# def callback_timer(update: telegram.Update, context: telegram.ext.CallbackContext):
+#     context.bot.send_message(chat_id=update.message.chat_id,
+#                              text='Setting a timer for 1 minute!')
+#
+#     context.job_queue.run_once(callback_alarm, 1, context=update.message.chat_id)
+
+
 dispatcher = updater.dispatcher
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
+
+# timer_handler = CommandHandler('timer', callback_timer)
+# dispatcher.add_handler(timer_handler)
 
 start_handler = CommandHandler('start', start)
 dispatcher.add_handler(start_handler)

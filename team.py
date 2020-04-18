@@ -79,27 +79,6 @@ def set_id(update, context):
         db_teams.update_one({'_id': team_db_id}, {'$addToSet': {'members': user_db_id}})
 
 
-def get_team_id(update):
-    user_file_name = str(update.effective_user.id) + '_user.txt'
-
-    if os.path.isfile(user_file_name):
-
-        with open(user_file_name, 'r') as f:
-            line = f.read()
-            ID = line.split(' ')[1]
-            return ID
-    else:
-        return ""
-
-
-def member_already_in_team(file_name, member_id):
-    with open(file_name, 'r') as f:
-        for line in f:
-            if line == 'MEMBER_ID: ' + str(member_id) + '\n':
-                return True
-        return False
-
-
 def get_new_team_document():
     team = {'text': [],
             'questions': [],
