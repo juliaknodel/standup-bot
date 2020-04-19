@@ -1,5 +1,3 @@
-import os
-from team import get_team_id
 from team import collection
 from team import existing_user
 
