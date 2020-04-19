@@ -56,7 +56,10 @@ def team_questions_text(questions_list):
     if len(questions_list) == 0:
         return 'Список вопросов пока пуст.'
     else:
-        return '- ' + '\n- '.join(questions_list)
+        message = ""
+        for question_ind in range(len(questions_list)):
+            message += str(question_ind + 1) + ". " + questions_list[question_ind] + "\n"
+        return message
 
 
 def get_new_question_document(text):
@@ -82,6 +85,3 @@ def get_team_questions_list(team_db_id):
         question = collection.questions.find_one({'_id': q_id})['question']
         questions.append(question)
     return questions
-
-
-
