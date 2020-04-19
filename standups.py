@@ -46,7 +46,7 @@ def get_standup_dates_from_schedule(schedule):
     return get_standup_dates(next_week_dates)
 
 
-def create_first_standup(team_db_id, context, chat_id, update, time_to_answer=datetime.timedelta(seconds=2)):
+def create_first_standup(team_db_id, context, chat_id, update, time_to_answer=datetime.timedelta(seconds=30)):
     schedule = db_teams.find_one({'_id': team_db_id})['schedule']
 
     # получаем словарь дата: интервал всех ближайших стендапов на каждый из дней недели
@@ -58,8 +58,7 @@ def create_first_standup(team_db_id, context, chat_id, update, time_to_answer=da
     send_questions_jobs = []
     send_answers_jobs = []
     for date in standup_dates:
-        context.bot.send_message(chat_id=update.effective_chat.id, text=str(date))
-        interval = datetime.timedelta(days=7*standup_dates[date])
+        interval = datetime.timedelta(days=7 * standup_dates[date])
         job = context.job_queue.run_repeating(standup_job,
                                               interval=interval,
                                               first=date,
@@ -266,7 +265,7 @@ def answer(update, context):
     try:
         write_answer_to_db(update, context)
         context.bot.send_message(chat_id=update.effective_chat.id,
-                             text="Ваш ответ добавлен.")
+                                 text="Ваш ответ добавлен.")
     except AnswerException as e:
         context.bot.send_message(chat_id=update.effective_chat.id, text=e.message)
 
@@ -277,15 +276,15 @@ def write_answer_to_db(update, context):
         raise AnswerException("Недостаточно аргументов.")
     q_num, q_ans = get_answer_args(context.args)
     team_db_id = get_team_db_id(update.effective_chat.id)
-    team_questions = db_teams.find_one({"_id" : team_db_id})["questions"]
-    if q_num >= len(team_questions):
+    team_questions = db_teams.find_one({'_id': team_db_id})['questions']
+    if q_num > len(team_questions):
         raise AnswerException("Вопроса с номером " + str(q_num) + " нет.")
     team_standups = db_teams.find_one({'_id': team_db_id})['standups']
     standup_db_id = team_standups[-1]
     collection.standups.update_one(
-        {"_id": standup_db_id}, {"$addToSet": {"answers": {"team_member_id" : update.effective_chat.id,
-                                                           "question" : q_num,
-                                                           "answer" : q_ans}}})
+        {"_id": standup_db_id}, {"$addToSet": {"answers": {"id": update.effective_chat.id,
+                                                           "question_num": q_num,
+                                                           "answer": q_ans}}})
 
 
 def get_answer_args(args):
@@ -363,5 +362,3 @@ def get_standup_dates(next_week_dates):
             standup_dates[dates[0][0]] = dates[0][1]
 
     return standup_dates
-
-
