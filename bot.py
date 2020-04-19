@@ -3,8 +3,10 @@ from telegram.ext import Updater
 import logging
 from telegram.ext import CommandHandler
 
-from questions import *
-from team import *
+from questions import add_question, show_questions_list
+from standups import set_standups, answer
+from team import new_team, set_id
+
 
 TOKEN = "TOKEN"
 
@@ -14,25 +16,54 @@ def start(update, context):
                                                                     "Если ваша команда уже зарегистрирована, "
                                                                     "то введите /set_id <id>.\n"
                                                                     "Чтобы зарегистрировать команду, введите "
-                                                                    "/new_team.\n"                                                  
+                                                                    "/new_team.\n"
                                                                     "Чтобы узнать что я могу, вызовите команду /help.")
 
 
 def help(update, context):
     context.bot.send_message(chat_id=update.effective_chat.id, text="/add_question [QUESTION] - "
-                                                                    "добавляет в список вопросов QUESTION\n"
+                                                                    "добавляет в список вопросов QUESTION.\n"
                                                                     "/question_list - "
-                                                                    "возвращает список всех вопросов для команды\n"
-                                                                    "/new_team - регистрация новой команды\n"
-                                                                    "/set_id [ID] - регистрация в существующей команде")
-
+                                                                    "возвращает список всех вопросов для команды.\n"
+                                                                    "/new_team - регистрация новой команды.\n"
+                                                                    "/set_id [ID] - регистрация в существующей "
+                                                                    "команде.\n"
+                                                                    "/answer [Q_NUM] [ANS] - отправка ответа на "
+                                                                    "вопрос, где [Q_NUM] - номер вопроса, [ANS] - "
+                                                                    "текст с ответом.\n"
+                                                                    "/set_standups - назначение расписания стендапов "
+                                                                    "(формат записи запроса: [DAY] [TIME] [PERIOD], "
+                                                                    "где [DAY] должен быть записан как SUNDAY, "
+                                                                    "MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY или "
+                                                                    "SATURDAY, [TIME] записывается в формате [HOURS]:"
+                                                                    "[MINUTES] (например, 9:23, но не 09:23), "
+                                                                    "[PERIOD] - количество недель между стендапами в "
+                                                                    "данный день недели.")
 
 
 bot = telegram.Bot(token=TOKEN)
 updater = Updater(token=TOKEN, use_context=True)
 
+j = updater.job_queue
+
+
+# def callback_alarm(context: telegram.ext.CallbackContext):
+#     chat_id = context.job.context
+#     context.bot.send_message(chat_id=chat_id, text=str(chat_id))
+#
+#
+# def callback_timer(update: telegram.Update, context: telegram.ext.CallbackContext):
+#     context.bot.send_message(chat_id=update.message.chat_id,
+#                              text='Setting a timer for 1 minute!')
+#
+#     context.job_queue.run_once(callback_alarm, 1, context=update.message.chat_id)
+
+
 dispatcher = updater.dispatcher
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
+
+# timer_handler = CommandHandler('timer', callback_timer)
+# dispatcher.add_handler(timer_handler)
 
 start_handler = CommandHandler('start', start)
 dispatcher.add_handler(start_handler)
@@ -59,5 +90,9 @@ dispatcher.add_handler(set_id_handler)
 # назначение дней стендапов
 set_standups_handler = CommandHandler('set_standups', set_standups)
 dispatcher.add_handler(set_standups_handler)
+
+# отправка ответа на вопросы
+set_answer_handler = CommandHandler('answer', answer)
+dispatcher.add_handler(set_answer_handler)
 
 updater.start_polling()
