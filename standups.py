@@ -4,6 +4,7 @@ from collections import defaultdict
 from questions import get_team_db_id, get_team_questions_list, team_questions_text
 from team import collection
 from team import get_team_connect_chats
+from team import existing_user
 
 db_teams = collection.teams
 db_standups = collection.standups
@@ -12,15 +13,14 @@ jobs = defaultdict(list)
 
 
 def set_standups(update, context):
-    chat_id = update.effective_chat.id
-    args = context.args
-    err_message = check_standups_input(args)
-    if err_message is not None:
-        context.bot.send_message(chat_id=update.effective_chat.id, text=err_message)
-        return
     # TODO: добавить проверку, в какую команду назначается расписание стендапов, если команд несколько
     # TODO: добавить проверку, является ли пользователь администратором в команде
-    team_db_id = get_team_db_id(update.effective_chat.id)
+    chat_id = update.effective_chat.id
+    err_message = check_standups_input(chat_id, context.args)
+    if err_message is not None:
+        context.bot.send_message(chat_id=chat_id, text=err_message)
+        return
+    team_db_id = get_team_db_id(chat_id)
     write_schedule_to_db(context.args, team_db_id)
 
     # остановим старые работы этой команды, если они были
@@ -60,7 +60,10 @@ def create_first_standup(team_db_id, context, chat_id, update, time_to_answer=da
     for date in standup_dates:
         context.bot.send_message(chat_id=update.effective_chat.id, text=str(date))
         interval = datetime.timedelta(days=7*standup_dates[date])
-        job = context.job_queue.run_repeating(standup_job, interval=interval, first=date, context=team_db_id)
+        job = context.job_queue.run_repeating(standup_job,
+                                              interval=interval,
+                                              first=date,
+                                              context=team_db_id)
         send_questions_jobs.append(job)
 
         send_answers_date = date + time_to_answer
@@ -127,11 +130,12 @@ def get_standup_answers(standup_db_id):
     return answers
 
 
-# TODO: упростить формат ввода дней (сопоставить дням натуральные числа от 1 до 7, прописать соответствие в /help)
 ALL_DAYS = ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY"]
 
 
-def check_standups_input(args):
+def check_standups_input(chat_id, args):
+    if existing_user(chat_id) is None:
+        return "Необходимо зарегистрироваться хотя бы в одной команде."
     args_number = len(args)
     standup_days = []
     if args_number == 0 or args_number % 3 != 0:
@@ -144,7 +148,7 @@ def check_standups_input(args):
         if args[day_ind] not in ALL_DAYS:
             return args[day_ind] + " - недопустимое значение дня недели."
         if args[day_ind] in standup_days:
-            return "День " + args[day_ind] + " введен дважды. Это недопустимо.."
+            return "День " + args[day_ind] + " введен дважды."
         else:
             standup_days.append(args[day_ind])
 
@@ -253,15 +257,43 @@ def is_natural_number(str):
         return False
 
 
-# TODO: реализовать функцию отправки ответа
+class AnswerException(BaseException):
+    def __init__(self, message):
+        self.message = message
+
+
 def answer(update, context):
-    if is_possible_to_ans() is False:
-        return
+    try:
+        write_answer_to_db(update, context)
+        context.bot.send_message(chat_id=update.effective_chat.id,
+                             text="Ваш ответ добавлен.")
+    except AnswerException as e:
+        context.bot.send_message(chat_id=update.effective_chat.id, text=e.message)
 
 
-# TODO: реализовать функцию проверки возможности отправить ответ
-def is_possible_to_ans():
-    return False
+def write_answer_to_db(update, context):
+    min_args_number = 2
+    if len(context.args) < min_args_number:
+        raise AnswerException("Недостаточно аргументов.")
+    q_num, q_ans = get_answer_args(context.args)
+    team_db_id = get_team_db_id(update.effective_chat.id)
+    team_questions = db_teams.find_one({"_id" : team_db_id})["questions"]
+    if q_num >= len(team_questions):
+        raise AnswerException("Вопроса с номером " + str(q_num) + " нет.")
+    team_standups = db_teams.find_one({'_id': team_db_id})['standups']
+    standup_db_id = team_standups[-1]
+    collection.standups.update_one(
+        {"_id": standup_db_id}, {"$addToSet": {"answers": {"team_member_id" : update.effective_chat.id,
+                                                           "question" : q_num,
+                                                           "answer" : q_ans}}})
+
+
+def get_answer_args(args):
+    if is_natural_number(args[0]) is False:
+        raise AnswerException("Вопроса с номером " + args[0] + " нет.")
+    q_number = int(args[0])
+    q_answer = " ".join(list(args[1:len(args)]))
+    return q_number, q_answer
 
 
 # # возвращает дату дд.мм.гггг, чч:мм, интервал от текущего времени
