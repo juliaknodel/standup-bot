@@ -1,7 +1,6 @@
 from team import collection
 from team import existing_user
 
-
 db_teams = collection.teams
 db_standups = collection.standups
 
@@ -31,6 +30,10 @@ def add_question(update, context):
         else:
             text = ' '.join(list(context.args))
             # пока команда одна => вопросы добавляем без вопроса в какую команду
+            team_questions = get_team_questions_list(team_db_id)
+            if text in team_questions:
+                context.bot.send_message(chat_id=user_chat_id, text="В вашей команде уже есть такой вопрос")
+                return
             question = get_new_question_document(text)
             question_db_id = db_questions.insert_one(question).inserted_id
             db_teams.update_one({'_id': team_db_id}, {'$addToSet': {'questions': question_db_id}})
