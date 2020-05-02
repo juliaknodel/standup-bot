@@ -121,7 +121,8 @@ def get_new_team_document():
             'connect_chats': [],
             'admins': [],
             'standups': [],
-            'name': 'DEFAULT'}
+            'name': 'DEFAULT',
+            'timezone': -3}
 
     return team
 
