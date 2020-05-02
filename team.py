@@ -1,5 +1,3 @@
-import os
-
 from bson import ObjectId
 from bson.errors import InvalidId
 from pymongo import MongoClient
@@ -7,6 +5,8 @@ from pymongo import MongoClient
 client = MongoClient('localhost', 27017)
 db = client['bot-test-database']
 collection = db['bot-test-collection']
+
+MAX_NAME_LENGTH = 20
 
 
 def new_team(update, context):
@@ -79,6 +79,35 @@ def set_id(update, context):
         db_teams.update_one({'_id': team_db_id}, {'$addToSet': {'members': user_db_id}})
 
 
+def set_name(update, context):
+    # TODO проверка что пользователь является администратором
+    user_chat_id = update.effective_chat.id
+
+    if not existing_user(user_chat_id):
+        context.bot.send_message(chat_id=user_chat_id, text="Сначала зарегистрируйте команду (/new_team) "
+                                                            "или введите id вашей команды (/set_id [id])")
+        return
+
+    # TODO выбор команды - возвращает номер команды в списке команд юзера
+    #  в эту функцию надо передать номер команды
+    team_db_id = get_team_db_id(user_chat_id, team_number=0)
+
+    if not team_db_id:
+        context.bot.send_message(chat_id=user_chat_id, text="Вы не состоите ни в одной команде.")
+
+    if not context.args:
+        context.bot.send_message(chat_id=user_chat_id, text="Пожалуйста, после команды введите новое название команды.")
+        return
+
+    team_name = ' '.join(list(context.args))
+    if len(team_name) > MAX_NAME_LENGTH:
+        context.bot.send_message(chat_id=user_chat_id, text="Количество символов не должно превышать 20.")
+        return
+    db_teams = collection.teams
+    db_teams.update_one({"_id": team_db_id}, {"$set": {"name": team_name}})
+    context.bot.send_message(chat_id=user_chat_id, text="Теперь ваша команда называется " + team_name)
+
+
 def get_new_team_document():
     team = {'text': [],
             'questions': [],
@@ -125,3 +154,13 @@ def is_valid_id(check_id):
 def get_team_connect_chats(team_db_id):
     connect_chats = collection.teams.find_one({'_id': team_db_id})['connect_chats']
     return connect_chats
+
+
+def get_team_db_id(user_chat_id, team_number=0):
+    # team_number - понадобится в будущем для выбора команды из списка
+    user = collection.users.find_one({'chat_id': user_chat_id})
+    if user:
+        teams = user['teams']
+        if len(teams) > team_number > -1:
+            return teams[team_number]
+    return False

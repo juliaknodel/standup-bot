@@ -3,11 +3,10 @@ from team import existing_user
 
 db_teams = collection.teams
 db_standups = collection.standups
+db_questions = collection.questions
 
 
 def add_question(update, context):
-    db_questions = collection.questions
-    db_teams = collection.teams
     user_chat_id = update.effective_chat.id
 
     # здесь будет проверка на права доступа к добавлению вопроса и
