@@ -14,15 +14,34 @@ db_standups = collection.standups
 jobs = defaultdict(list)
 
 
+def show_standups(update, context):
+    user_chat_id = update.effective_chat.id
+    team_db_id, err_message = get_team_db_id(user_chat_id)
+    standups_ids = db_teams.find_one({'_id': team_db_id})['standups']
+    if len(standups_ids) == 0:
+        context.bot.send_message(chat_id=user_chat_id, text="История стендапов пуста.\n")
+        return
+    message_text = ""
+    standup_number = 1
+    for standup_id in standups_ids:
+        standup = db_standups.find_one({'_id' : standup_id})
+        day = str(standup['date']['day'])
+        month = str(standup['date']['month'])
+        year = str(standup['date']['year'])
+        message_text += "# " + str(standup_number) + "   " + day + "." + month + "." + year + "\n"
+        standup_number += 1
+    context.bot.send_message(chat_id=user_chat_id, text=message_text)
+
+
+
 def set_standups(update, context):
-    # TODO: добавить проверку, в какую команду назначается расписание стендапов, если команд несколько
     # TODO: добавить проверку, является ли пользователь администратором в команде
     chat_id = update.effective_chat.id
     err_message = check_standups_input(chat_id, context.args)
     if err_message is not None:
         context.bot.send_message(chat_id=chat_id, text=err_message)
         return
-    team_db_id = get_team_db_id(chat_id)
+    team_db_id, err_message = get_team_db_id(chat_id)
     write_schedule_to_db(context.args, team_db_id)
 
     # остановим старые работы этой команды, если они были
@@ -48,7 +67,8 @@ def get_standup_dates_from_schedule(schedule):
 
 
 def create_first_standup(team_db_id, context, chat_id, update, time_to_answer=datetime.timedelta(seconds=30)):
-    schedule = db_teams.find_one({'_id': team_db_id})['schedule']
+    team = db_teams.find_one({'_id': team_db_id})
+    schedule = team['schedule']
 
     # получаем словарь дата: интервал всех ближайших стендапов на каждый из дней недели
     standup_dates = get_standup_dates_from_schedule(schedule)
@@ -58,18 +78,20 @@ def create_first_standup(team_db_id, context, chat_id, update, time_to_answer=da
 
     send_questions_jobs = []
     send_answers_jobs = []
+    delta = int(team['timezone'])
+    delta = datetime.timedelta(hours=delta)
     for date in standup_dates:
         interval = datetime.timedelta(days=7 * standup_dates[date])
         job = context.job_queue.run_repeating(standup_job,
                                               interval=interval,
-                                              first=date,
+                                              first=date + delta,
                                               context=team_db_id)
         send_questions_jobs.append(job)
 
         send_answers_date = date + time_to_answer
 
         job = context.job_queue.run_repeating(send_answers_job, interval=interval,
-                                              first=send_answers_date, context=team_db_id)
+                                              first=send_answers_date + delta, context=team_db_id)
         send_answers_jobs.append(job)
     return send_questions_jobs, send_answers_jobs
 
@@ -98,6 +120,7 @@ def send_standup_to_connect_chats(team_db_id, standup_db_id, context):
     connect_chats = get_team_connect_chats(team_db_id)
     answers = get_standup_answers(standup_db_id)
     merged_standup = ''
+    team_name = db_teams.find_one({'_id': team_db_id})['name']
 
     for member_id in answers:
         member_answers = answers[member_id]
@@ -110,7 +133,8 @@ def send_standup_to_connect_chats(team_db_id, standup_db_id, context):
 
     if merged_standup == '':
         merged_standup = 'К сожалению, пока ни один из участников не ответил на вопросы'
-
+    merged_standup = 'ID команды: ' + str(team_db_id) + '\nНазвание команды: ' + str(team_name) + \
+                     '\n\n' + merged_standup
     for chat in connect_chats:
         user_chat_id = collection.users.find_one({'_id': chat})['chat_id']
         context.bot.send_message(chat_id=user_chat_id, text=merged_standup)
@@ -160,24 +184,38 @@ def check_standups_input(chat_id, args):
 
 
 def new_standup(questions, team_db_id):
-    standup = get_new_standup_document(questions, [], "", "", team_db_id)
+    timezone_hour = db_teams.find_one({'_id': team_db_id})['timezone']
+    curr_local_time = datetime.datetime.utcnow() - datetime.timedelta(hours=timezone_hour)
+    standup = get_new_standup_document(questions=questions,
+                                       answers=[],
+                                       date={'day': curr_local_time.day,
+                                             'month': curr_local_time.month,
+                                             'year': curr_local_time.year
+                                             },
+                                       time={'hour': curr_local_time.hour,
+                                             'minute': curr_local_time.minute
+                                             },
+                                       team_db_id=team_db_id)
     standup_db_id = db_standups.insert_one(standup).inserted_id
     db_teams.update_one({"_id": team_db_id}, {"$addToSet": {'standups': standup_db_id}})
 
 
 def send_questions(context, team_db_id, questions):
     text = team_questions_text(questions)
+    team_name = db_teams.find_one({'_id': team_db_id})['name']
+    title = 'ID команды: ' + str(team_db_id) + '\nНазвание команды: ' + str(team_name) + \
+            '\n\n'
     members = db_teams.find_one({'_id': team_db_id})['members']
     for member in members:
         chat_id = collection.users.find_one({'_id': member})['chat_id']
-        context.bot.send_message(chat_id=chat_id, text=text)
+        context.bot.send_message(chat_id=chat_id, text=title + text)
 
 
 def get_standup_dates_from_db(team_db_id):
     return db_teams.find_one({'_id': team_db_id})['standup_dates']
 
 
-def get_new_standup_document(questions=[], answers=[], date="", time="", team_db_id=''):
+def get_new_standup_document(questions=[], answers=[], date={}, time={}, team_db_id=''):
     standup = {'questions': questions,
                'answers': answers,
                'date': date,
@@ -276,11 +314,17 @@ def write_answer_to_db(update, context):
     if len(context.args) < min_args_number:
         raise AnswerException("Недостаточно аргументов.")
     q_num, q_ans = get_answer_args(context.args)
-    team_db_id = get_team_db_id(update.effective_chat.id)
+    team_db_id, err_message = get_team_db_id(update.effective_chat.id)
+    if not team_db_id:
+        raise AnswerException(err_message)
     team_questions = db_teams.find_one({'_id': team_db_id})['questions']
+
+    team_standups = db_teams.find_one({'_id': team_db_id})['standups']
+    if not team_standups:
+        raise AnswerException("В вашей команде пока не проводились стендапы.")
     if q_num > len(team_questions):
         raise AnswerException("Вопроса с номером " + str(q_num) + " нет.")
-    team_standups = db_teams.find_one({'_id': team_db_id})['standups']
+
     standup_db_id = team_standups[-1]
     collection.standups.update_one(
         {"_id": standup_db_id}, {"$addToSet": {"answers": {"id": update.effective_chat.id,

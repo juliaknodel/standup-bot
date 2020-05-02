@@ -4,7 +4,7 @@ import logging
 from telegram.ext import CommandHandler
 
 from questions import add_question, show_questions_list
-from standups import set_standups, answer
+from standups import set_standups, answer, show_standups
 from team import new_team, set_id, set_name, set_active_team, teams
 
 TOKEN = "TOKEN"
@@ -20,7 +20,8 @@ def start(update, context):
 
 
 def help(update, context):
-    context.bot.send_message(chat_id=update.effective_chat.id, text="/add_question [QUESTION] - "
+    context.bot.send_message(chat_id=update.effective_chat.id, text="Все действия происходят для активной команды\n"
+                                                                    "/add_question [QUESTION] - "
                                                                     "добавляет в список вопросов QUESTION.\n"
                                                                     "/question_list - "
                                                                     "возвращает список всех вопросов для команды.\n"
@@ -37,7 +38,10 @@ def help(update, context):
                                                                     "SATURDAY, [TIME] записывается в формате [HOURS]:"
                                                                     "[MINUTES] (например, 9:23, но не 09:23), "
                                                                     "[PERIOD] - количество недель между стендапами в "
-                                                                    "данный день недели.")
+                                                                    "данный день недели.\n"
+                                                                    "/set_name [NAME] - изменение названия активной "
+                                                                    "команды"
+                                                                    "/set_active_team - выбор активной команды")
 
 
 bot = telegram.Bot(token=TOKEN)
@@ -104,5 +108,9 @@ dispatcher.add_handler(set_active_team_handler)
 
 # обработка нажатия на кнопку для выбора активной команды
 updater.dispatcher.add_handler(CallbackQueryHandler(teams))
+
+# вывод списка стендапов
+show_standups_handler = CommandHandler('show_standups', show_standups)
+dispatcher.add_handler(show_standups_handler)
 
 updater.start_polling()
