@@ -186,11 +186,13 @@ def check_active_team_is_valid(user):
 def set_active_team(update, context):
     """Функция, реализующая выбор команды участника для взаимодействия с помощью кнопок"""
     user_chat_id = update.effective_chat.id
-    user_db_id = get_db_id_by_chat_id(user_chat_id)
-    key = get_teams_list_inline_keyboard(user_db_id)
-    if not user_db_id:
+    user = existing_user(user_chat_id)
+    if not user:
         context.bot.send_message(chat_id=user_chat_id, text="Вы пока не состоите ни в одной команде")
         return
+
+    user_db_id = user['_id']
+    key = get_teams_list_inline_keyboard(user_db_id)
 
     context.bot.send_message(chat_id=user_chat_id, text="Команды: ", reply_markup=key)
 
