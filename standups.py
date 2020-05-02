@@ -1,8 +1,10 @@
 import datetime
 from collections import defaultdict
 
-from questions import get_team_db_id, get_team_questions_list, team_questions_text
-from team import collection
+from questions import get_team_db_id
+from questions import get_team_questions_list
+from questions import team_questions_text
+from settings import collection
 from team import get_team_connect_chats
 from team import existing_user
 

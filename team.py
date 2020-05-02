@@ -1,19 +1,17 @@
+import telegram
 from bson import ObjectId
 from bson.errors import InvalidId
-from pymongo import MongoClient
+from telegram import InlineKeyboardMarkup
 
-client = MongoClient('localhost', 27017)
-db = client['bot-test-database']
-collection = db['bot-test-collection']
+from settings import collection
+from settings import MAX_NAME_LENGTH
 
-MAX_NAME_LENGTH = 20
+db_users = collection.users
+db_teams = collection.teams
 
 
 def new_team(update, context):
     admin_chat_id = update.effective_chat.id
-
-    db_users = collection.users
-    db_teams = collection.teams
 
     if not existing_user(admin_chat_id):
         user = get_new_user_document(admin_chat_id)
@@ -90,6 +88,7 @@ def set_name(update, context):
 
     # TODO выбор команды - возвращает номер команды в списке команд юзера
     #  в эту функцию надо передать номер команды
+    # get_team_num(update, context, user_chat_id)
     team_db_id = get_team_db_id(user_chat_id, team_number=0)
 
     if not team_db_id:
@@ -101,8 +100,10 @@ def set_name(update, context):
 
     team_name = ' '.join(list(context.args))
     if len(team_name) > MAX_NAME_LENGTH:
-        context.bot.send_message(chat_id=user_chat_id, text="Количество символов не должно превышать 20.")
+        context.bot.send_message(chat_id=user_chat_id, text="Количество символов не должно превышать " +
+                                                            str(MAX_NAME_LENGTH))
         return
+
     db_teams = collection.teams
     db_teams.update_one({"_id": team_db_id}, {"$set": {"name": team_name}})
     context.bot.send_message(chat_id=user_chat_id, text="Теперь ваша команда называется " + team_name)
@@ -164,3 +165,49 @@ def get_team_db_id(user_chat_id, team_number=0):
         if len(teams) > team_number > -1:
             return teams[team_number]
     return False
+
+
+def set_active_team(update, context):
+    """Функция, реализующая выбор команды участника для взаимодействия с помощью кнопок"""
+    user_chat_id = update.effective_chat.id
+    user_db_id = get_db_id_by_chat_id(user_chat_id)
+    key = get_teams_list_inline_keyboard(user_db_id)
+    if not user_db_id:
+        context.bot.send_message(chat_id=user_chat_id, text="Вы пока не состоите ни в одной команде")
+        return
+
+    context.bot.send_message(chat_id=user_chat_id, text="Команды: ", reply_markup=key)
+
+
+def get_teams_list_inline_keyboard(user_db_id):
+    user_teams_list = db_users.find_one({'_id': user_db_id})['teams']
+    teams_names_list = [db_teams.find_one({'_id': team_id})['name'] for team_id in user_teams_list]
+    buttons = []
+    for i in range(len(user_teams_list)):
+        button = telegram.InlineKeyboardButton(teams_names_list[i], url=None,
+                                               callback_data=i,
+                                               switch_inline_query=None,
+                                               switch_inline_query_current_chat=None, callback_game=None, pay=None,
+                                               login_url=None)
+        buttons.append(button)
+
+    key = InlineKeyboardMarkup([[button] for button in buttons])
+    return key
+
+
+def teams(update, context):
+    user_chat_id = update.effective_chat.id
+
+    query = update.callback_query
+    query.answer()
+    team_num = query.data
+
+    user_teams = db_users.find_one({'chat_id': user_chat_id})['teams']
+    active_team_db_id = user_teams[int(team_num)]
+    active_team_name = db_teams.find_one({'_id': active_team_db_id})['name']
+
+    db_users.update_one({'chat_id': user_chat_id}, {"$set": {"active_team": [active_team_db_id, team_num]}})
+
+    context.bot.send_message(chat_id=user_chat_id, text="ID активной команды: " + str(active_team_db_id) + '\n\n' +
+                                                        "Название активной команды: " + str(active_team_name))
+
