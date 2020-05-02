@@ -276,7 +276,9 @@ def write_answer_to_db(update, context):
     if len(context.args) < min_args_number:
         raise AnswerException("Недостаточно аргументов.")
     q_num, q_ans = get_answer_args(context.args)
-    team_db_id = get_team_db_id(update.effective_chat.id)
+    team_db_id, err_message = get_team_db_id(update.effective_chat.id)
+    if not team_db_id:
+        raise AnswerException(err_message)
     team_questions = db_teams.find_one({'_id': team_db_id})['questions']
     if q_num > len(team_questions):
         raise AnswerException("Вопроса с номером " + str(q_num) + " нет.")
