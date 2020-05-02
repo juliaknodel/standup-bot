@@ -287,9 +287,13 @@ def write_answer_to_db(update, context):
     if not team_db_id:
         raise AnswerException(err_message)
     team_questions = db_teams.find_one({'_id': team_db_id})['questions']
+
+    team_standups = db_teams.find_one({'_id': team_db_id})['standups']
+    if not team_standups:
+        raise AnswerException("В вашей команде пока не проводились стендапы.")
     if q_num > len(team_questions):
         raise AnswerException("Вопроса с номером " + str(q_num) + " нет.")
-    team_standups = db_teams.find_one({'_id': team_db_id})['standups']
+
     standup_db_id = team_standups[-1]
     collection.standups.update_one(
         {"_id": standup_db_id}, {"$addToSet": {"answers": {"id": update.effective_chat.id,
