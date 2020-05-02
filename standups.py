@@ -17,6 +17,8 @@ jobs = defaultdict(list)
 def show_standups(update, context):
     user_chat_id = update.effective_chat.id
     team_db_id, err_message = get_team_db_id(user_chat_id)
+    if team_db_id is False:
+        return
     standups_ids = db_teams.find_one({'_id': team_db_id})['standups']
     if len(standups_ids) == 0:
         context.bot.send_message(chat_id=user_chat_id, text="История стендапов пуста.\n")
