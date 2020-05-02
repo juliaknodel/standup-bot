@@ -14,6 +14,26 @@ db_standups = collection.standups
 jobs = defaultdict(list)
 
 
+def show_standups(update, context):
+    user_chat_id = update.effective_chat.id
+    team_db_id, err_message = get_team_db_id(user_chat_id)
+    standups_ids = db_teams.find_one({'_id': team_db_id})['standups']
+    if len(standups_ids) == 0:
+        context.bot.send_message(chat_id=user_chat_id, text="История стендапов пуста.\n")
+        return
+    message_text = ""
+    standup_number = 1
+    for standup_id in standups_ids:
+        standup = db_standups.find_one({'_id' : standup_id})
+        day = str(standup['date']['day'])
+        month = str(standup['date']['month'])
+        year = str(standup['date']['year'])
+        message_text += "# " + str(standup_number) + "   " + day + "." + month + "." + year + "\n"
+        standup_number += 1
+    context.bot.send_message(chat_id=user_chat_id, text=message_text)
+
+
+
 def set_standups(update, context):
     # TODO: добавить проверку, является ли пользователь администратором в команде
     chat_id = update.effective_chat.id
@@ -164,7 +184,18 @@ def check_standups_input(chat_id, args):
 
 
 def new_standup(questions, team_db_id):
-    standup = get_new_standup_document(questions, [], "", "", team_db_id)
+    timezone_hour = db_teams.find_one({'_id': team_db_id})['timezone']
+    curr_local_time = datetime.datetime.utcnow() - datetime.timedelta(hours=timezone_hour)
+    standup = get_new_standup_document(questions=questions,
+                                       answers=[],
+                                       date={'day': curr_local_time.day,
+                                             'month': curr_local_time.month,
+                                             'year': curr_local_time.year
+                                             },
+                                       time={'hour': curr_local_time.hour,
+                                             'minute': curr_local_time.minute
+                                             },
+                                       team_db_id=team_db_id)
     standup_db_id = db_standups.insert_one(standup).inserted_id
     db_teams.update_one({"_id": team_db_id}, {"$addToSet": {'standups': standup_db_id}})
 
@@ -184,7 +215,7 @@ def get_standup_dates_from_db(team_db_id):
     return db_teams.find_one({'_id': team_db_id})['standup_dates']
 
 
-def get_new_standup_document(questions=[], answers=[], date="", time="", team_db_id=''):
+def get_new_standup_document(questions=[], answers=[], date={}, time={}, team_db_id=''):
     standup = {'questions': questions,
                'answers': answers,
                'date': date,
