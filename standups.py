@@ -25,8 +25,9 @@ def set_standups(update, context):
 
     # остановим старые работы этой команды, если они были
     old_jobs = jobs[team_db_id]
-    for job in old_jobs:
-        job.schedule_removal()  # остановили работу по отправке вопросов и ответов
+    for weekday_jobs in old_jobs:
+        for job in weekday_jobs:
+            job.schedule_removal()  # остановили работу по отправке вопросов и ответов
     send_questions_jobs, send_answers_jobs = create_first_standup(team_db_id, context, chat_id, update)
 
     # вернули список с указателями на созданные работы, теперь они хранятся в словаре
