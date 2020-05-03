@@ -228,4 +228,3 @@ def teams(update, context):
 
     context.bot.send_message(chat_id=user_chat_id, text="ID активной команды: " + str(active_team_db_id) + '\n\n' +
                                                         "Название активной команды: " + str(active_team_name))
-
