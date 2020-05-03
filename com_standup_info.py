@@ -46,7 +46,7 @@ def generate_standup_info_text(st_number, st_date, st_questions, st_answers):
 
     info_text += "Вопросы.\n"
     for ind in range(len(st_questions)):
-        info_text += str(ind) + ". " + st_questions[ind] + "\n"
+        info_text += str(ind + 1) + ". " + st_questions[ind] + "\n"
     info_text += "\n"
 
     info_text += "Ответы.\n"
