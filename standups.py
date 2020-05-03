@@ -149,12 +149,12 @@ def check_standups_input(chat_id, args):
         time_ind = arg_ind + 1
         period_ind = arg_ind + 2
 
-        if args[day_ind] not in ALL_DAYS:
+        if args[day_ind].upper() not in ALL_DAYS:
             return args[day_ind] + " - недопустимое значение дня недели."
-        if args[day_ind] in standup_days:
+        if args[day_ind].upper() in standup_days:
             return "День " + args[day_ind] + " введен дважды."
         else:
-            standup_days.append(args[day_ind])
+            standup_days.append(args[day_ind].upper())
 
         if is_time_value(args[time_ind]) is False:
             return args[time_ind] + " - недопустимое значение времени."
@@ -212,7 +212,7 @@ def write_schedule_to_db(args, team_db_id):
         time_ind = arg_ind + 1
         period_ind = arg_ind + 2
         hours, mins = get_time(args[time_ind])
-        schedule.append({"day": args[day_ind], "hours": hours, "minutes": mins, "period": args[period_ind]})
+        schedule.append({"day": args[day_ind].upper(), "hours": hours, "minutes": mins, "period": args[period_ind]})
     collection.teams.update_one({"_id": team_db_id}, {"$set": {"schedule": schedule}})
 
 

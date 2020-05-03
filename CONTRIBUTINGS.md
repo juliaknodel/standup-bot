@@ -7,7 +7,7 @@
 
 + Перед pull request - сделать pull целевой ветви в свою и разрешить все конфликты
 
-# Commit message conventions:
+# Commit Message Conventions:
 + Структура коммита:
 > Коротко (50 символов или меньше) резюме изменений без точки в конце
 > 
@@ -52,3 +52,36 @@
   + Тело циклов while, for или ветки if всегда на новой строке
   
   + В конце файла оставляйте пустую строку
+  
+  # Installation and Startup Instructions
+  
+  ### 1. Клонируйте этот репозиторий
+  > git clone https://github.com/juliaknodel/standup-bot.git
+  
+  ### 2. Установка библиотеки python-telegram-bot (cовместима со всеми версиями Python 3.5+ и PyPy)
+   #### Способ 1
+   > $ pip install python-telegram-bot --upgrade
+
+   #### Способ 2
+   > $ git clone https://github.com/python-telegram-bot/python-telegram-bot --recursive
+   
+   > $ cd python-telegram-bot
+   
+   > $ python setup.py install
+
+  ### 3. Установка БД MongoDB
+
+  + Скачать zip файл с официального сайта https://www.mongodb.com/download-center/community
+  + Распаковать скачанный файл в папку MongoDB и создать в лежащей внутри папке bin подпапку data
+
+  ### 4. Запуск БД
+
+  + В CMD из папки bin ввести команду
+  > mongod.exe --dbpath="data"
+
+  + В другой CMD с правами администратора из папки bin ввести команду
+  > mongo.exe
+
+  ### 5. Запуск бота
+  + В терминале введите команду:
+  > python bot.py
