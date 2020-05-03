@@ -1,44 +1,20 @@
 import datetime
 from collections import defaultdict
-
 from questions import get_team_db_id
 from questions import get_team_questions_list
 from questions import team_questions_text
 from settings import collection
 from team import get_team_connect_chats
 from team import existing_user
+from user_input import is_natural_number
+from query import db_teams
+from query import db_standups
 
-db_teams = collection.teams
-db_standups = collection.standups
 
 jobs = defaultdict(list)
 
 
-def show_standups(update, context):
-    user_chat_id = update.effective_chat.id
-    team_db_id, err_message = get_team_db_id(user_chat_id)
-    if team_db_id is False:
-        context.bot.send_message(chat_id=user_chat_id, text=err_message)
-        return
-    standups_ids = db_teams.find_one({'_id': team_db_id})['standups']
-    if len(standups_ids) == 0:
-        context.bot.send_message(chat_id=user_chat_id, text="История стендапов пуста.\n")
-        return
-    message_text = ""
-    standup_number = 1
-    for standup_id in standups_ids:
-        standup = db_standups.find_one({'_id' : standup_id})
-        day = str(standup['date']['day'])
-        month = str(standup['date']['month'])
-        year = str(standup['date']['year'])
-        message_text += "# " + str(standup_number) + "   " + day + "." + month + "." + year + "\n"
-        standup_number += 1
-    context.bot.send_message(chat_id=user_chat_id, text=message_text)
-
-
-
 def set_standups(update, context):
-    # TODO: добавить проверку, является ли пользователь администратором в команде
     chat_id = update.effective_chat.id
     err_message = check_standups_input(chat_id, context.args)
     if err_message is not None:
@@ -277,70 +253,6 @@ def check_minutes(time, time_delimiter_ind):
     minutes = time[time_delimiter_ind + 1:len(time)]
     if int(minutes) < 0 or int(minutes) >= 60:
         raise ValueError
-
-
-def is_integer_number(str):
-    try:
-        number = int(str)
-        return True
-    except ValueError:
-        return False
-
-
-def is_natural_number(str):
-    try:
-        number = int(str)
-        if number <= 0:
-            return False
-        else:
-            return True
-    except ValueError:
-        return False
-
-
-class AnswerException(BaseException):
-    def __init__(self, message):
-        self.message = message
-
-
-def answer(update, context):
-    try:
-        write_answer_to_db(update, context)
-        context.bot.send_message(chat_id=update.effective_chat.id,
-                                 text="Ваш ответ добавлен.")
-    except AnswerException as e:
-        context.bot.send_message(chat_id=update.effective_chat.id, text=e.message)
-
-
-def write_answer_to_db(update, context):
-    min_args_number = 2
-    if len(context.args) < min_args_number:
-        raise AnswerException("Недостаточно аргументов.")
-    q_num, q_ans = get_answer_args(context.args)
-    team_db_id, err_message = get_team_db_id(update.effective_chat.id)
-    if not team_db_id:
-        raise AnswerException(err_message)
-    team_questions = db_teams.find_one({'_id': team_db_id})['questions']
-
-    team_standups = db_teams.find_one({'_id': team_db_id})['standups']
-    if not team_standups:
-        raise AnswerException("В вашей команде пока не проводились стендапы.")
-    if q_num > len(team_questions):
-        raise AnswerException("Вопроса с номером " + str(q_num) + " нет.")
-
-    standup_db_id = team_standups[-1]
-    collection.standups.update_one(
-        {"_id": standup_db_id}, {"$addToSet": {"answers": {"id": update.effective_chat.id,
-                                                           "question_num": q_num,
-                                                           "answer": q_ans}}})
-
-
-def get_answer_args(args):
-    if is_natural_number(args[0]) is False:
-        raise AnswerException("Вопроса с номером " + args[0] + " нет.")
-    q_number = int(args[0])
-    q_answer = " ".join(list(args[1:len(args)]))
-    return q_number, q_answer
 
 
 # # возвращает дату дд.мм.гггг, чч:мм, интервал от текущего времени
