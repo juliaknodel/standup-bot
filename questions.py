@@ -1,13 +1,13 @@
 from team import collection
 from team import existing_user
+from team import get_team_db_id
 
 db_teams = collection.teams
 db_standups = collection.standups
+db_questions = collection.questions
 
 
 def add_question(update, context):
-    db_questions = collection.questions
-    db_teams = collection.teams
     user_chat_id = update.effective_chat.id
 
     # здесь будет проверка на права доступа к добавлению вопроса и
@@ -18,11 +18,10 @@ def add_question(update, context):
                                                             "или введите id вашей команды (/set_id [id])")
         return
 
-    team_db_id = get_team_db_id(user_chat_id)
+    team_db_id, err_message = get_team_db_id(user_chat_id)
 
     if not team_db_id:
-        context.bot.send_message(chat_id=user_chat_id, text="Номер команды введен некорректно. "
-                                                            "Либо вы не состоите в команде.")
+        context.bot.send_message(chat_id=user_chat_id, text=err_message)
     else:
         if not context.args:
             context.bot.send_message(chat_id=user_chat_id, text="Пожалуйста, добавьте текст вопроса"
@@ -43,7 +42,11 @@ def add_question(update, context):
 
 def show_questions_list(update, context):
     user_chat_id = update.effective_chat.id
-    team_db_id = get_team_db_id(user_chat_id)
+    team_db_id, err_message = get_team_db_id(user_chat_id)
+
+    if not team_db_id:
+        context.bot.send_message(chat_id=user_chat_id, text=err_message)
+        return
 
     if not existing_user(user_chat_id):
         context.bot.send_message(chat_id=user_chat_id, text="Сначала зарегистрируйте команду (/new_team) "
@@ -69,16 +72,6 @@ def get_new_question_document(text):
     question = {'question': text}
 
     return question
-
-
-def get_team_db_id(user_chat_id, team_number=0):
-    # team_number - понадобится в будущем для выбора команды из списка
-    user = collection.users.find_one({'chat_id': user_chat_id})
-    if user:
-        teams = user['teams']
-        if len(teams) > team_number > -1:
-            return teams[team_number]
-    return False
 
 
 def get_team_questions_list(team_db_id):
