@@ -183,7 +183,7 @@ def check_active_team_is_valid(user):
     return active_team_db_id, 'OK'
 
 
-def set_active_team(update, context):
+def com_set_active_team(update, context):
     """Функция, реализующая выбор команды участника для взаимодействия с помощью кнопок"""
     user_chat_id = update.effective_chat.id
     user = existing_user(user_chat_id)
@@ -202,8 +202,11 @@ def get_teams_list_inline_keyboard(user_db_id):
     teams_names_list = [db_teams.find_one({'_id': team_id})['name'] for team_id in user_teams_list]
     buttons = []
     for team_num in range(len(user_teams_list)):
-        button = telegram.InlineKeyboardButton(teams_names_list[team_num], url=None,
-                                               callback_data=team_num,
+        team_name = teams_names_list[team_num]
+        team_db_id = user_teams_list[team_num]
+        send_data = 'SET_ACTIVE_TEAM' + ' ' + str(team_num) + ' ' + str(team_db_id)
+        button = telegram.InlineKeyboardButton(team_name, url=None,
+                                               callback_data=send_data,
                                                switch_inline_query=None,
                                                switch_inline_query_current_chat=None, callback_game=None, pay=None,
                                                login_url=None)
@@ -213,18 +216,22 @@ def get_teams_list_inline_keyboard(user_db_id):
     return key
 
 
-def teams(update, context):
+def set_active_team(update, context, team_num, team_db_id):
     user_chat_id = update.effective_chat.id
 
-    query = update.callback_query
-    query.answer()
-    team_num = int(query.data)
-
+    team_db_id = is_valid_id(team_db_id)
     user_teams = db_users.find_one({'chat_id': user_chat_id})['teams']
+
+    # TODO ? обновление кнопок список команд изменился ?
+    if not team_db_id or len(user_teams) <= int(team_num) or user_teams[int(team_num)] != team_db_id:
+        message = "Ваш список команд изменился"
+        return False, message
+
     active_team_db_id = user_teams[int(team_num)]
     active_team_name = db_teams.find_one({'_id': active_team_db_id})['name']
 
     db_users.update_one({'chat_id': user_chat_id}, {"$set": {"active_team": active_team_db_id}})
 
-    context.bot.send_message(chat_id=user_chat_id, text="ID активной команды: " + str(active_team_db_id) + '\n\n' +
-                                                        "Название активной команды: " + str(active_team_name))
+    message = "ID активной команды: " + str(active_team_db_id) + '\n\n' + \
+              "Название активной команды: " + str(active_team_name)
+    return True, message
