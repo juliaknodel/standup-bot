@@ -53,9 +53,6 @@ def create_first_standup(team_db_id, context, chat_id, update, time_to_answer=da
     # получаем словарь дата: интервал всех ближайших стендапов на каждый из дней недели
     standup_dates = get_standup_dates_from_schedule(schedule)
 
-    # job2 = context.job_queue.run_once(standup_job, 1, context=team_db_id)
-    # job2.schedule_removal()  # Remove this job completely
-
     send_questions_jobs = []
     send_answers_jobs = []
     delta = int(team['timezone'])
@@ -99,8 +96,10 @@ def send_standup_to_connect_chats(team_db_id, standup_db_id, context):
     # TODO сделать проверку на пришедший тип: является ли ObjectId
     connect_chats = get_team_connect_chats(team_db_id)
     answers = get_standup_answers(standup_db_id)
-    merged_standup = ''
-    team_name = db_teams.find_one({'_id': team_db_id})['name']
+    standups_ids = db_teams.find_one({'_id': team_db_id})['standups']
+    standup_num = len(standups_ids)
+    merged_standup = 'Результаты стендапа #' + str(standup_num) + '\n\n'
+    title = get_title(team_db_id)
 
     for member_id in answers:
         member_answers = answers[member_id]
@@ -113,11 +112,10 @@ def send_standup_to_connect_chats(team_db_id, standup_db_id, context):
 
     if merged_standup == '':
         merged_standup = 'К сожалению, пока ни один из участников не ответил на вопросы'
-    merged_standup = 'ID команды: ' + str(team_db_id) + '\nНазвание команды: ' + str(team_name) + \
-                     '\n\n' + merged_standup
+
     for chat in connect_chats:
         user_chat_id = collection.users.find_one({'_id': chat})['chat_id']
-        context.bot.send_message(chat_id=user_chat_id, text=merged_standup)
+        context.bot.send_message(chat_id=user_chat_id, text=title + merged_standup)
 
 
 # возвращает словарь ключ - id участника, значение - список пар [номер_вопроса, ответ]
@@ -180,11 +178,21 @@ def new_standup(questions, team_db_id):
     db_teams.update_one({"_id": team_db_id}, {"$addToSet": {'standups': standup_db_id}})
 
 
-def send_questions(context, team_db_id, questions):
-    text = team_questions_text(questions)
+def get_title(team_db_id):
     team_name = db_teams.find_one({'_id': team_db_id})['name']
     title = 'ID команды: ' + str(team_db_id) + '\nНазвание команды: ' + str(team_name) + \
             '\n\n'
+    return title
+
+
+def send_questions(context, team_db_id, questions):
+    standups_ids = db_teams.find_one({'_id': team_db_id})['standups']
+    standup_num = len(standups_ids)
+
+    text = 'Начало стендапа #' + str(standup_num) + '\n\n'
+    text += team_questions_text(questions)
+    title = get_title(team_db_id)
+
     members = db_teams.find_one({'_id': team_db_id})['members']
     for member in members:
         chat_id = collection.users.find_one({'_id': member})['chat_id']

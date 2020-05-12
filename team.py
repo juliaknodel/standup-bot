@@ -20,12 +20,7 @@ def new_team(update, context):
     else:
         # TODO проверка что участник уже состоит в данной команде
         admin_db_id = get_db_id_by_chat_id(admin_chat_id)
-        # при снятии заглушки этот код:
         context.bot.send_message(chat_id=admin_chat_id, text="О, у Вас новая команда!")
-        # заглушка на мультикомандность
-        # context.bot.send_message(chat_id=admin_chat_id, text="Привет! На данный момент вы не можете быть "
-        #                                                      "участником более чем одной команды.")
-        # return
 
     team = get_new_team_document()
 
@@ -62,14 +57,6 @@ def set_id(update, context):
             user_db_id = db_users.insert_one(user).inserted_id
             context.bot.send_message(chat_id=user_chat_id, text="Привет! Это ваша первая команда!")
         else:
-            # заглушка на мультикомандность
-            # context.bot.send_message(chat_id=user_chat_id, text="На данный момент вы не можете быть "
-            #                                                     "участником более чем одной команды.")
-            # return
-            # при снятии заглушки этот код:
-            #
-            # проверка что уже состоит в конкретной команде - сообщение об этом
-            # иначе
             user_teams = user['teams']
             user_db_id = user['_id']
             if team_db_id in user_teams:
