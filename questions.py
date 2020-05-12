@@ -121,7 +121,7 @@ def team_questions_text(questions_list):
     if len(questions_list) == 0:
         return 'Список вопросов пока пуст.'
     else:
-        message = "\n\nСписок вопросов:\n"
+        message = "Список вопросов:\n"
         for question_ind in range(len(questions_list)):
             message += str(question_ind + 1) + ". " + questions_list[question_ind] + "\n"
         return message
