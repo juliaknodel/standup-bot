@@ -21,7 +21,7 @@ def help(update, context):
            "/set_name [NAME] - изменение названия активной " \
            "команды.\n\n" \
            "/set_active_team - выбор активной команды.\n\n" \
-           "/show_standups - вывести историю стендапов.\n\n" \
+           "/show_standups [NUM] - вывести последние стендапы. Параметр [NUM] задает их количество.\n\n" \
            "/standup_info [S_NUM] - вывести информацию о стендапе (дата, вопросы, ответы участников). " \
            "Команда ожидает на вход номер вопроса [S_NUM].\n"
     context.bot.send_message(chat_id=update.effective_chat.id, text=text)
