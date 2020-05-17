@@ -10,6 +10,8 @@ from user_input import is_natural_number
 from query import db_teams
 from query import db_standups
 
+db_question = collection.questions
+
 
 def set_standups(update, context):
     chat_id = update.effective_chat.id
@@ -95,13 +97,14 @@ def send_standup_to_connect_chats(team_db_id, standup_db_id, context):
     answers = get_standup_answers(standup_db_id)
     standups_ids = db_teams.find_one({'_id': team_db_id})['standups']
     standup_num = len(standups_ids)
-    merged_standup = 'Результаты стендапа #' + str(standup_num) + '\n\n'
-    title = get_title(team_db_id)
-
+    title = 'Результаты стендапа #' + str(standup_num) + '\n\n'
+    title += get_title(team_db_id)
+    merged_standup = ''
     for member_id in answers:
         member_answers = answers[member_id]
         member_answers_text = ''
 
+        member_answers.sort(key=lambda x: x[0])
         for answer in member_answers:
             member_answers_text += str(answer[0]) + '. ' + answer[1] + '\n'
 
