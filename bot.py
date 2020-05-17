@@ -4,42 +4,26 @@ import logging
 from telegram.ext import CommandHandler
 
 from buttons_handler import buttons_handler
-from questions import add_question, show_questions_list, com_remove_question
+from questions import add_question
+from questions import show_questions_list
+from questions import com_remove_question
 from com_start import start
 from com_help import help
 from standups import set_standups
 from com_answer import answer
 from com_show_standups import show_standups
 from com_standup_info import show_standup_info
-from team import new_team, set_id, set_name, com_set_active_team
+from team import new_team, set_id, set_name, com_set_active_team, com_remove_team
 
-
-TOKEN = "TOKEN"
-
+from secrets import TOKEN
 
 bot = telegram.Bot(token=TOKEN)
 updater = Updater(token=TOKEN, use_context=True)
 
 j = updater.job_queue
 
-
-# def callback_alarm(context: telegram.ext.CallbackContext):
-#     chat_id = context.job.context
-#     context.bot.send_message(chat_id=chat_id, text=str(chat_id))
-#
-#
-# def callback_timer(update: telegram.Update, context: telegram.ext.CallbackContext):
-#     context.bot.send_message(chat_id=update.message.chat_id,
-#                              text='Setting a timer for 1 minute!')
-#
-#     context.job_queue.run_once(callback_alarm, 1, context=update.message.chat_id)
-
-
 dispatcher = updater.dispatcher
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
-
-# timer_handler = CommandHandler('timer', callback_timer)
-# dispatcher.add_handler(timer_handler)
 
 start_handler = CommandHandler('start', start)
 dispatcher.add_handler(start_handler)
@@ -93,5 +77,9 @@ dispatcher.add_handler(standup_info_handler)
 # удаление вопроса
 remove_question_handler = CommandHandler('remove_question', com_remove_question)
 dispatcher.add_handler(remove_question_handler)
+
+# удаление команды
+remove_team_handler = CommandHandler('remove_team', com_remove_team)
+dispatcher.add_handler(remove_team_handler)
 
 updater.start_polling()
