@@ -361,3 +361,23 @@ def remove_team_member(team_db_id, user_db_id):
     return True, message
 
 
+def com_join_connect_chats(update, context):
+    user_chat_id = update.effective_chat.id
+    user = existing_user(user_chat_id)
+    if not user or not len(user['teams']):
+        context.bot.send_message(chat_id=user_chat_id, text="Вы пока не состоите ни в одной команде.")
+        return
+
+    team_db_id, err_message = get_team_db_id(user_chat_id)
+    if not team_db_id:
+        context.bot.send_message(chat_id=user_chat_id, text=err_message)
+        return
+
+    team_name = db_teams.find_one({'_id': team_db_id})['name']
+    db_teams.update_one({'_id': team_db_id}, {'$addToSet': {'connect_chats': user['_id']}})
+
+    context.bot.send_message(chat_id=user_chat_id, text='Теперь вы будете получать результаты стендапов команды ' +
+                             team_name)
+
+
+
