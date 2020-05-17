@@ -54,8 +54,8 @@ def create_first_standup(team_db_id, context, chat_id, update, time_to_answer=da
 
     send_questions_jobs = []
     send_answers_jobs = []
-    delta = int(team['timezone'])
-    delta = datetime.timedelta(hours=delta)
+    time = team['timezone'].split(' ')
+    delta = datetime.timedelta(hours=int(time[0]), minutes=int(time[1]))
     for date in standup_dates:
         interval = datetime.timedelta(days=7 * standup_dates[date])
         job = context.job_queue.run_repeating(standup_job,
@@ -162,8 +162,9 @@ def check_standups_input(chat_id, args):
 
 
 def new_standup(questions, team_db_id):
-    timezone_hour = db_teams.find_one({'_id': team_db_id})['timezone']
-    curr_local_time = datetime.datetime.utcnow() - datetime.timedelta(hours=timezone_hour)
+    timezone = db_teams.find_one({'_id': team_db_id})['timezone'].split(' ')
+    curr_local_time = datetime.datetime.utcnow() - datetime.timedelta(hours=int(timezone[0]),
+                                                                      minutes=int(timezone[1]))
     standup = get_new_standup_document(questions=questions,
                                        answers=[],
                                        date={'day': curr_local_time.day,
