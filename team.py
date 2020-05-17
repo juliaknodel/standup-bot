@@ -186,15 +186,29 @@ def com_set_active_team(update, context):
     context.bot.send_message(chat_id=user_chat_id, text="Команды: ", reply_markup=key)
 
 
-def get_teams_list_inline_keyboard(user_db_id):
+def get_teams_list_inline_keyboard(user_db_id, command_text='SET_ACTIVE_TEAM', exit_button=False):
     user_teams_list = db_users.find_one({'_id': user_db_id})['teams']
     teams_names_list = [db_teams.find_one({'_id': team_id})['name'] for team_id in user_teams_list]
     buttons = []
     for team_num in range(len(user_teams_list)):
         team_name = teams_names_list[team_num]
         team_db_id = user_teams_list[team_num]
-        send_data = 'SET_ACTIVE_TEAM' + ' ' + str(team_num) + ' ' + str(team_db_id)
+        add_info = str(team_num)
+
+        if command_text == 'DEL_MEMBER':
+            add_info = str(user_db_id)
+
+        send_data = command_text + ' ' + add_info + ' ' + str(team_db_id)
         button = telegram.InlineKeyboardButton(team_name, url=None,
+                                               callback_data=send_data,
+                                               switch_inline_query=None,
+                                               switch_inline_query_current_chat=None, callback_game=None, pay=None,
+                                               login_url=None)
+        buttons.append(button)
+
+    if exit_button:
+        send_data = 'EXIT'
+        button = telegram.InlineKeyboardButton('Отмена', url=None,
                                                callback_data=send_data,
                                                switch_inline_query=None,
                                                switch_inline_query_current_chat=None, callback_game=None, pay=None,
@@ -297,6 +311,53 @@ def remove_team(team_db_id):
     db_teams.remove({'_id': team_db_id})
 
     message = 'Команда ' + name + ' успешно удалена.'
+    return True, message
+
+
+def com_leave_team(update, context):
+    user_chat_id = update.effective_chat.id
+    user = existing_user(user_chat_id)
+    if not user or not len(user['teams']):
+        context.bot.send_message(chat_id=user_chat_id, text="Вы пока не состоите ни в одной команде")
+        return
+
+    user_db_id = user['_id']
+    key = get_teams_list_inline_keyboard(user_db_id, command_text='DEL_MEMBER', exit_button=True)
+
+    context.bot.send_message(chat_id=user_chat_id, text="Ваши команды: ", reply_markup=key)
+
+
+def remove_team_member(team_db_id, user_db_id):
+
+    team_db_id = is_valid_id(team_db_id)
+    team = db_teams.find_one({'_id': team_db_id})
+    if not team:
+        message = "Такая команда не существует"
+        return False, message
+
+    user_db_id = is_valid_id(user_db_id)
+    user = db_users.find_one({'_id': user_db_id})
+    if not user or not len(user['teams']):
+        message = "Вы пока не состоите ни в одной команде"
+        return False, message
+
+    if len(team['members']) == 1:
+        message = "Вы последний участник команды. Пожалуйста, воспользуйтесь командой /remove_team, чтобы удалить её."
+        return False, message
+
+    # TODO проверка что администратор (тк могли удалить, а кнопка нажмется позднее, чем была вызвана)
+    #  message return иначе
+    #  если я супер-администратор - message: переназначить (кнопки) and return
+
+    db_teams.update_one({'_id': team_db_id}, {'$pull': {'connect_chats': user_db_id}})
+    db_teams.update_one({"_id": team_db_id}, {'$pull': {'members': user_db_id}})
+    db_teams.update_one({'_id': team_db_id}, {'$pull': {'admins': user_db_id}})
+    db_users.update_one({'_id': user_db_id}, {'$pull': {'teams': team_db_id}})
+
+    team_name = team['name']
+    message = 'Вы вышли из команды ' + team_name + '.\n'
+    if user['active_team'] == team_db_id:
+        message = '\nВы вышли из активной команды. Выберите новую активную команду: /set_active_team'
     return True, message
 
 

@@ -13,7 +13,7 @@ from standups import set_standups
 from com_answer import answer
 from com_show_standups import show_standups
 from com_standup_info import show_standup_info
-from team import new_team, set_id, set_name, com_set_active_team, com_remove_team
+from team import new_team, set_id, set_name, com_set_active_team, com_remove_team, com_leave_team
 
 from secrets import TOKEN
 
@@ -81,5 +81,9 @@ dispatcher.add_handler(remove_question_handler)
 # удаление команды
 remove_team_handler = CommandHandler('remove_team', com_remove_team)
 dispatcher.add_handler(remove_team_handler)
+
+# выход из команды
+leave_team_handler = CommandHandler('leave_team', com_leave_team)
+dispatcher.add_handler(leave_team_handler)
 
 updater.start_polling()
