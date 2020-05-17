@@ -3,15 +3,12 @@ from collections import defaultdict
 from questions import get_team_db_id
 from questions import get_team_questions_list
 from questions import team_questions_text
-from settings import collection
+from settings import collection, jobs
 from team import get_team_connect_chats
 from team import existing_user
 from user_input import is_natural_number
 from query import db_teams
 from query import db_standups
-
-
-jobs = defaultdict(list)
 
 
 def set_standups(update, context):

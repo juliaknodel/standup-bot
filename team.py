@@ -3,11 +3,13 @@ from bson import ObjectId
 from bson.errors import InvalidId
 from telegram import InlineKeyboardMarkup
 
-from settings import collection
+from settings import collection, jobs
 from settings import MAX_NAME_LENGTH
+
 
 db_users = collection.users
 db_teams = collection.teams
+db_standups = collection.standups
 
 
 def new_team(update, context):
@@ -174,7 +176,7 @@ def com_set_active_team(update, context):
     """Функция, реализующая выбор команды участника для взаимодействия с помощью кнопок"""
     user_chat_id = update.effective_chat.id
     user = existing_user(user_chat_id)
-    if not user:
+    if not user or not len(user['teams']):
         context.bot.send_message(chat_id=user_chat_id, text="Вы пока не состоите ни в одной команде")
         return
 
@@ -222,3 +224,79 @@ def set_active_team(update, context, team_num, team_db_id):
     message = "ID активной команды: " + str(active_team_db_id) + '\n\n' + \
               "Название активной команды: " + str(active_team_name)
     return True, message
+
+
+def get_teams_able_to_remove_list_inline_keyboard(user_db_id):
+    user_teams_list = db_users.find_one({'_id': user_db_id})['teams']
+    teams_names_list = [db_teams.find_one({'_id': team_id})['name'] for team_id in user_teams_list]
+    buttons = []
+    for team_num in range(len(user_teams_list)):
+        team_name = teams_names_list[team_num]
+        team_db_id = user_teams_list[team_num]
+        # TODO перед добавлением проверяем, что юзер состоит в списке администраторов
+        send_data = 'REMOVE_TEAM' + ' ' + str(team_db_id)
+        button = telegram.InlineKeyboardButton(team_name, url=None,
+                                               callback_data=send_data,
+                                               switch_inline_query=None,
+                                               switch_inline_query_current_chat=None, callback_game=None, pay=None,
+                                               login_url=None)
+        buttons.append(button)
+
+    send_data = 'EXIT'
+    button = telegram.InlineKeyboardButton('Отмена', url=None,
+                                           callback_data=send_data,
+                                           switch_inline_query=None,
+                                           switch_inline_query_current_chat=None, callback_game=None, pay=None,
+                                           login_url=None)
+    buttons.append(button)
+
+    key = InlineKeyboardMarkup([[button] for button in buttons])
+    return key
+
+
+def com_remove_team(update, context):
+    user_chat_id = update.effective_chat.id
+    user = existing_user(user_chat_id)
+    if not user or not len(user['teams']):
+        context.bot.send_message(chat_id=user_chat_id, text="Вы пока не состоите ни в одной команде")
+        return
+
+    user_db_id = user['_id']
+    key = get_teams_able_to_remove_list_inline_keyboard(user_db_id)
+
+    context.bot.send_message(chat_id=user_chat_id, text="Команды доступные для удаления: ", reply_markup=key)
+
+
+def remove_team(team_db_id):
+
+    team_db_id = is_valid_id(team_db_id)
+    if not team_db_id:
+        message = "Ваш список команд изменился"
+        return False, message
+
+    team = db_teams.find_one({'_id': team_db_id})
+    if not team:
+        message = "Такая команда не существует"
+        return False, message
+
+    name = team['name']
+    members = team['members']
+    standups = team['standups']
+
+    old_jobs = jobs[team_db_id]
+    for weekday_jobs in old_jobs:
+        for job in weekday_jobs:
+            job.schedule_removal()  # остановили работу по отправке вопросов и ответов
+
+    for member_db_id in members:
+        db_users.update_one({'_id': member_db_id}, {'$pull': {'teams': team_db_id}})
+
+    for standup_db_id in standups:
+        db_standups.remove({'_id': standup_db_id})
+
+    db_teams.remove({'_id': team_db_id})
+
+    message = 'Команда ' + name + ' успешно удалена.'
+    return True, message
+
+
