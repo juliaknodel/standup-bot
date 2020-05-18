@@ -40,12 +40,14 @@ def write_answer_to_db(update, context):
     st_id = st_ids[-1]
 
     if is_answer_exists(st_id, user_id, q_num):
-        # TODO: сделать обновление ответа
-        pass
-    else:
-        db_standups.update_one({'_id': st_id}, {'$addToSet': {'answers': {'id': user_id,
-                                                                          'question_num': q_num,
-                                                                          'answer': q_ans}}})
+        db_standups.update_one(
+            {'_id': st_id},
+            {'$pull': {'answers': {'id': user_id,
+                                   'question_num': q_num}}},
+        )
+    db_standups.update_one({'_id': st_id}, {'$addToSet': {'answers': {'id': user_id,
+                                                                      'question_num': q_num,
+                                                                      'answer': q_ans}}})
 
 
 def get_answer_command_args(args):

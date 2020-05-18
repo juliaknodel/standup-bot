@@ -3,15 +3,18 @@ from bson import ObjectId
 from bson.errors import InvalidId
 from telegram import InlineKeyboardMarkup
 
-from settings import collection
+from settings import collection, jobs, bot
 from settings import MAX_NAME_LENGTH
+
 
 db_users = collection.users
 db_teams = collection.teams
+db_standups = collection.standups
 
 
 def new_team(update, context):
     admin_chat_id = update.effective_chat.id
+    admin_id = update.effective_user.id
 
     if not existing_user(admin_chat_id):
         user = get_new_user_document(admin_chat_id)
@@ -20,12 +23,7 @@ def new_team(update, context):
     else:
         # TODO проверка что участник уже состоит в данной команде
         admin_db_id = get_db_id_by_chat_id(admin_chat_id)
-        # при снятии заглушки этот код:
         context.bot.send_message(chat_id=admin_chat_id, text="О, у Вас новая команда!")
-        # заглушка на мультикомандность
-        # context.bot.send_message(chat_id=admin_chat_id, text="Привет! На данный момент вы не можете быть "
-        #                                                      "участником более чем одной команды.")
-        # return
 
     team = get_new_team_document()
 
@@ -37,6 +35,7 @@ def new_team(update, context):
     db_teams.update_one({'_id': team_db_id}, {'$addToSet': {'admins': admin_db_id}})
     db_users.update_one({'_id': admin_db_id}, {'$addToSet': {'teams': team_db_id}})
     db_users.update_one({'_id': admin_db_id}, {'$set': {'active_team': team_db_id}})
+    db_users.update_one({'_id': admin_db_id}, {'$set': {'id': admin_id}})
 
     context.bot.send_message(chat_id=admin_chat_id, text="Новая команда стала активной\n"
                                                          "ID вашей команды: " + str(team_db_id) +
@@ -46,6 +45,7 @@ def new_team(update, context):
 
 def set_id(update, context):
     user_chat_id = update.effective_chat.id
+    user_id = update.effective_user.id
 
     if not context.args:
         context.bot.send_message(chat_id=user_chat_id, text="Пожалуйста, после команды введите id или "
@@ -62,14 +62,6 @@ def set_id(update, context):
             user_db_id = db_users.insert_one(user).inserted_id
             context.bot.send_message(chat_id=user_chat_id, text="Привет! Это ваша первая команда!")
         else:
-            # заглушка на мультикомандность
-            # context.bot.send_message(chat_id=user_chat_id, text="На данный момент вы не можете быть "
-            #                                                     "участником более чем одной команды.")
-            # return
-            # при снятии заглушки этот код:
-            #
-            # проверка что уже состоит в конкретной команде - сообщение об этом
-            # иначе
             user_teams = user['teams']
             user_db_id = user['_id']
             if team_db_id in user_teams:
@@ -78,6 +70,7 @@ def set_id(update, context):
 
         db_users.update_one({'_id': user_db_id}, {'$addToSet': {'teams': team_db_id}})
         db_users.update_one({'_id': user_db_id}, {'$set': {'active_team': team_db_id}})
+        db_users.update_one({'_id': user_db_id}, {'$set': {'id': user_id}})
         db_teams.update_one({'_id': team_db_id}, {'$addToSet': {'members': user_db_id}})
 
         active_team_name = db_teams.find_one({'_id': team_db_id})['name']
@@ -94,7 +87,7 @@ def set_name(update, context):
                                                             "или введите id вашей команды (/set_id [id])")
         return
 
-    team_db_id, err_message = get_team_db_id(user_chat_id, team_number=0)
+    team_db_id, err_message = get_team_db_id(user_chat_id)
 
     if not team_db_id:
         context.bot.send_message(chat_id=user_chat_id, text=err_message)
@@ -122,7 +115,7 @@ def get_new_team_document():
             'admins': [],
             'standups': [],
             'name': 'DEFAULT',
-            'timezone': -3}
+            'timezone': "-3 -0"}
 
     return team
 
@@ -163,8 +156,7 @@ def get_team_connect_chats(team_db_id):
     return connect_chats
 
 
-def get_team_db_id(user_chat_id, team_number=0):
-    # team_number - понадобится в будущем для выбора команды из списка
+def get_team_db_id(user_chat_id):
     user = collection.users.find_one({'chat_id': user_chat_id})
     if user:
         active_team_db_id, err_message = check_active_team_is_valid(user)
@@ -183,11 +175,11 @@ def check_active_team_is_valid(user):
     return active_team_db_id, 'OK'
 
 
-def set_active_team(update, context):
+def com_set_active_team(update, context):
     """Функция, реализующая выбор команды участника для взаимодействия с помощью кнопок"""
     user_chat_id = update.effective_chat.id
     user = existing_user(user_chat_id)
-    if not user:
+    if not user or not len(user['teams']):
         context.bot.send_message(chat_id=user_chat_id, text="Вы пока не состоите ни в одной команде")
         return
 
@@ -197,13 +189,30 @@ def set_active_team(update, context):
     context.bot.send_message(chat_id=user_chat_id, text="Команды: ", reply_markup=key)
 
 
-def get_teams_list_inline_keyboard(user_db_id):
+def get_teams_list_inline_keyboard(user_db_id, command_text='SET_ACTIVE_TEAM', exit_button=False):
     user_teams_list = db_users.find_one({'_id': user_db_id})['teams']
     teams_names_list = [db_teams.find_one({'_id': team_id})['name'] for team_id in user_teams_list]
     buttons = []
     for team_num in range(len(user_teams_list)):
-        button = telegram.InlineKeyboardButton(teams_names_list[team_num], url=None,
-                                               callback_data=team_num,
+        team_name = teams_names_list[team_num]
+        team_db_id = user_teams_list[team_num]
+        add_info = str(team_num)
+
+        if command_text == 'DEL_MEMBER':
+            add_info = str(user_db_id)
+
+        send_data = command_text + ' ' + add_info + ' ' + str(team_db_id)
+        button = telegram.InlineKeyboardButton(team_name, url=None,
+                                               callback_data=send_data,
+                                               switch_inline_query=None,
+                                               switch_inline_query_current_chat=None, callback_game=None, pay=None,
+                                               login_url=None)
+        buttons.append(button)
+
+    if exit_button:
+        send_data = 'EXIT'
+        button = telegram.InlineKeyboardButton('Отмена', url=None,
+                                               callback_data=send_data,
                                                switch_inline_query=None,
                                                switch_inline_query_current_chat=None, callback_game=None, pay=None,
                                                login_url=None)
@@ -213,18 +222,173 @@ def get_teams_list_inline_keyboard(user_db_id):
     return key
 
 
-def teams(update, context):
+def set_active_team(update, context, team_num, team_db_id):
     user_chat_id = update.effective_chat.id
 
-    query = update.callback_query
-    query.answer()
-    team_num = int(query.data)
-
+    team_db_id = is_valid_id(team_db_id)
     user_teams = db_users.find_one({'chat_id': user_chat_id})['teams']
+
+    # TODO ? обновление кнопок список команд изменился ?
+    if not team_db_id or len(user_teams) <= int(team_num) or user_teams[int(team_num)] != team_db_id:
+        message = "Ваш список команд изменился"
+        return False, message
+
     active_team_db_id = user_teams[int(team_num)]
     active_team_name = db_teams.find_one({'_id': active_team_db_id})['name']
 
     db_users.update_one({'chat_id': user_chat_id}, {"$set": {"active_team": active_team_db_id}})
 
-    context.bot.send_message(chat_id=user_chat_id, text="ID активной команды: " + str(active_team_db_id) + '\n\n' +
-                                                        "Название активной команды: " + str(active_team_name))
+    message = "ID активной команды: " + str(active_team_db_id) + '\n\n' + \
+              "Название активной команды: " + str(active_team_name)
+    return True, message
+
+
+def get_teams_able_to_remove_list_inline_keyboard(user_db_id):
+    user_teams_list = db_users.find_one({'_id': user_db_id})['teams']
+    teams_names_list = [db_teams.find_one({'_id': team_id})['name'] for team_id in user_teams_list]
+    buttons = []
+    for team_num in range(len(user_teams_list)):
+        team_name = teams_names_list[team_num]
+        team_db_id = user_teams_list[team_num]
+        # TODO перед добавлением проверяем, что юзер состоит в списке администраторов
+        send_data = 'REMOVE_TEAM' + ' ' + str(team_db_id)
+        button = telegram.InlineKeyboardButton(team_name, url=None,
+                                               callback_data=send_data,
+                                               switch_inline_query=None,
+                                               switch_inline_query_current_chat=None, callback_game=None, pay=None,
+                                               login_url=None)
+        buttons.append(button)
+
+    send_data = 'EXIT'
+    button = telegram.InlineKeyboardButton('Отмена', url=None,
+                                           callback_data=send_data,
+                                           switch_inline_query=None,
+                                           switch_inline_query_current_chat=None, callback_game=None, pay=None,
+                                           login_url=None)
+    buttons.append(button)
+
+    key = InlineKeyboardMarkup([[button] for button in buttons])
+    return key
+
+
+def com_remove_team(update, context):
+    user_chat_id = update.effective_chat.id
+    user = existing_user(user_chat_id)
+    if not user or not len(user['teams']):
+        context.bot.send_message(chat_id=user_chat_id, text="Вы пока не состоите ни в одной команде")
+        return
+
+    user_db_id = user['_id']
+    key = get_teams_able_to_remove_list_inline_keyboard(user_db_id)
+
+    context.bot.send_message(chat_id=user_chat_id, text="Команды доступные для удаления: ", reply_markup=key)
+
+
+def remove_team(team_db_id):
+
+    team_db_id = is_valid_id(team_db_id)
+    if not team_db_id:
+        message = "Ваш список команд изменился"
+        return False, message
+
+    team = db_teams.find_one({'_id': team_db_id})
+    if not team:
+        message = "Такая команда не существует"
+        return False, message
+
+    name = team['name']
+    members = team['members']
+    standups = team['standups']
+
+    old_jobs = jobs[team_db_id]
+    for weekday_jobs in old_jobs:
+        for job in weekday_jobs:
+            job.schedule_removal()  # остановили работу по отправке вопросов и ответов
+
+    for member_db_id in members:
+        db_users.update_one({'_id': member_db_id}, {'$pull': {'teams': team_db_id}})
+
+    for standup_db_id in standups:
+        db_standups.remove({'_id': standup_db_id})
+
+    db_teams.remove({'_id': team_db_id})
+
+    message = 'Команда ' + name + ' успешно удалена.'
+    return True, message
+
+
+def com_leave_team(update, context):
+    user_chat_id = update.effective_chat.id
+    user = existing_user(user_chat_id)
+    if not user or not len(user['teams']):
+        context.bot.send_message(chat_id=user_chat_id, text="Вы пока не состоите ни в одной команде")
+        return
+
+    user_db_id = user['_id']
+    key = get_teams_list_inline_keyboard(user_db_id, command_text='DEL_MEMBER', exit_button=True)
+
+    context.bot.send_message(chat_id=user_chat_id, text="Ваши команды: ", reply_markup=key)
+
+
+def remove_team_member(team_db_id, user_db_id):
+
+    team_db_id = is_valid_id(team_db_id)
+    team = db_teams.find_one({'_id': team_db_id})
+    if not team:
+        message = "Такая команда не существует"
+        return False, message
+
+    user_db_id = is_valid_id(user_db_id)
+    user = db_users.find_one({'_id': user_db_id})
+    if not user or not len(user['teams']):
+        message = "Вы пока не состоите ни в одной команде"
+        return False, message
+
+    if len(team['members']) == 1:
+        message = "Вы последний участник команды. Пожалуйста, воспользуйтесь командой /remove_team, чтобы удалить её."
+        return False, message
+
+    # TODO проверка что администратор (тк могли удалить, а кнопка нажмется позднее, чем была вызвана)
+    #  message return иначе
+    #  если я супер-администратор - message: переназначить (кнопки) and return
+
+    db_teams.update_one({'_id': team_db_id}, {'$pull': {'connect_chats': user_db_id}})
+    db_teams.update_one({"_id": team_db_id}, {'$pull': {'members': user_db_id}})
+    db_teams.update_one({'_id': team_db_id}, {'$pull': {'admins': user_db_id}})
+    db_users.update_one({'_id': user_db_id}, {'$pull': {'teams': team_db_id}})
+
+    team_name = team['name']
+    message = 'Вы вышли из команды ' + team_name + '.\n'
+    if user['active_team'] == team_db_id:
+        message = '\nВы вышли из активной команды. Выберите новую активную команду: /set_active_team'
+    return True, message
+
+
+def com_join_connect_chats(update, context):
+    user_chat_id = update.effective_chat.id
+    user = existing_user(user_chat_id)
+    if not user or not len(user['teams']):
+        context.bot.send_message(chat_id=user_chat_id, text="Вы пока не состоите ни в одной команде.")
+        return
+
+    team_db_id, err_message = get_team_db_id(user_chat_id)
+    if not team_db_id:
+        context.bot.send_message(chat_id=user_chat_id, text=err_message)
+        return
+
+    team_name = db_teams.find_one({'_id': team_db_id})['name']
+    db_teams.update_one({'_id': team_db_id}, {'$addToSet': {'connect_chats': user['_id']}})
+
+    context.bot.send_message(chat_id=user_chat_id, text='Теперь вы будете получать результаты стендапов команды ' +
+                             team_name)
+
+
+def get_user_username(user_chat_id):
+    user_id = db_users.find_one({'chat_id': user_chat_id})['id']
+
+    chat_member = bot.getChatMember(user_chat_id, user_id)
+    user = chat_member.user
+    username = user.username
+    if not username:
+        username = user.full_name
+    return username
