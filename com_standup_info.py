@@ -1,3 +1,4 @@
+from team import get_user_username
 from user_input import is_natural_number
 from exception import BotUserException
 from query import db_standups
@@ -56,7 +57,8 @@ def generate_standup_info_text(st_number, st_date, st_questions, st_answers):
         for st_answer in st_answers:
             q_number = str(st_answer['question_num'])
             q_answer = st_answer['answer']
-            author_id = str(st_answer['id'])
-            info_text += q_number + ". " + q_answer + " (" + author_id + ")\n"
+            author_chat_id = st_answer['id']
+            author_username = get_user_username(author_chat_id)
+            info_text += q_number + ". " + q_answer + " (" + author_username + ")\n"
 
     return info_text

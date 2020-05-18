@@ -18,7 +18,6 @@ from team import new_team, set_id, set_name, com_set_active_team, com_remove_tea
 
 from secrets import TOKEN
 
-bot = telegram.Bot(token=TOKEN)
 updater = Updater(token=TOKEN, use_context=True)
 
 j = updater.job_queue
