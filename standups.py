@@ -4,13 +4,13 @@ from questions import get_team_db_id
 from questions import get_team_questions_list
 from questions import team_questions_text
 from settings import collection, jobs
-from team import get_team_connect_chats
+from team import get_team_connect_chats, get_user_username, is_valid_id
 from team import existing_user
 from user_input import is_natural_number
 from query import db_teams
 from query import db_standups
 
-db_question = collection.questions
+db_questions = collection.questions
 
 
 def set_standups(update, context):
@@ -97,18 +97,23 @@ def send_standup_to_connect_chats(team_db_id, standup_db_id, context):
     answers = get_standup_answers(standup_db_id)
     standups_ids = db_teams.find_one({'_id': team_db_id})['standups']
     standup_num = len(standups_ids)
+
+    questions = db_standups.find_one({'_id': standup_db_id})['questions']
+    questions_text = team_questions_text(questions)
     title = 'Результаты стендапа #' + str(standup_num) + '\n\n'
     title += get_title(team_db_id)
+    title += questions_text + '\n'
     merged_standup = ''
-    for member_id in answers:
-        member_answers = answers[member_id]
+    for member_chat_id in answers:
+        member_answers = answers[member_chat_id]
         member_answers_text = ''
 
         member_answers.sort(key=lambda x: x[0])
         for answer in member_answers:
             member_answers_text += str(answer[0]) + '. ' + answer[1] + '\n'
 
-        merged_standup += 'answers by ' + str(member_id) + '\n' + member_answers_text
+        user_username = get_user_username(member_chat_id)
+        merged_standup += 'Ответы от ' + str(user_username) + '\n' + member_answers_text
 
     if merged_standup == '':
         merged_standup = 'К сожалению, пока ни один из участников не ответил на вопросы'
@@ -189,9 +194,9 @@ def send_questions(context, team_db_id, questions):
     standups_ids = db_teams.find_one({'_id': team_db_id})['standups']
     standup_num = len(standups_ids)
 
-    text = 'Начало стендапа #' + str(standup_num) + '\n\n'
-    text += team_questions_text(questions)
-    title = get_title(team_db_id)
+    title = 'Начало стендапа #' + str(standup_num) + '\n\n'
+    text = team_questions_text(questions)
+    title += get_title(team_db_id)
 
     members = db_teams.find_one({'_id': team_db_id})['members']
     for member in members:
