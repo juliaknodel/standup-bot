@@ -3,7 +3,7 @@ from bson import ObjectId
 from bson.errors import InvalidId
 from telegram import InlineKeyboardMarkup
 
-from settings import collection, jobs
+from settings import collection, jobs, bot
 from settings import MAX_NAME_LENGTH
 
 
@@ -14,6 +14,7 @@ db_standups = collection.standups
 
 def new_team(update, context):
     admin_chat_id = update.effective_chat.id
+    admin_id = update.effective_user.id
 
     if not existing_user(admin_chat_id):
         user = get_new_user_document(admin_chat_id)
@@ -34,6 +35,7 @@ def new_team(update, context):
     db_teams.update_one({'_id': team_db_id}, {'$addToSet': {'admins': admin_db_id}})
     db_users.update_one({'_id': admin_db_id}, {'$addToSet': {'teams': team_db_id}})
     db_users.update_one({'_id': admin_db_id}, {'$set': {'active_team': team_db_id}})
+    db_users.update_one({'_id': admin_db_id}, {'$set': {'id': admin_id}})
 
     context.bot.send_message(chat_id=admin_chat_id, text="Новая команда стала активной\n"
                                                          "ID вашей команды: " + str(team_db_id) +
@@ -43,6 +45,7 @@ def new_team(update, context):
 
 def set_id(update, context):
     user_chat_id = update.effective_chat.id
+    user_id = update.effective_user.id
 
     if not context.args:
         context.bot.send_message(chat_id=user_chat_id, text="Пожалуйста, после команды введите id или "
@@ -67,6 +70,7 @@ def set_id(update, context):
 
         db_users.update_one({'_id': user_db_id}, {'$addToSet': {'teams': team_db_id}})
         db_users.update_one({'_id': user_db_id}, {'$set': {'active_team': team_db_id}})
+        db_users.update_one({'_id': user_db_id}, {'$set': {'id': user_id}})
         db_teams.update_one({'_id': team_db_id}, {'$addToSet': {'members': user_db_id}})
 
         active_team_name = db_teams.find_one({'_id': team_db_id})['name']
@@ -377,3 +381,14 @@ def com_join_connect_chats(update, context):
 
     context.bot.send_message(chat_id=user_chat_id, text='Теперь вы будете получать результаты стендапов команды ' +
                              team_name)
+
+
+def get_user_username(user_chat_id):
+    user_id = db_users.find_one({'chat_id': user_chat_id})['id']
+
+    chat_member = bot.getChatMember(user_chat_id, user_id)
+    user = chat_member.user
+    username = user.username
+    if not username:
+        username = user.full_name
+    return username
