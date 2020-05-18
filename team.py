@@ -83,7 +83,7 @@ def set_name(update, context):
                                                             "или введите id вашей команды (/set_id [id])")
         return
 
-    team_db_id, err_message = get_team_db_id(user_chat_id, team_number=0)
+    team_db_id, err_message = get_team_db_id(user_chat_id)
 
     if not team_db_id:
         context.bot.send_message(chat_id=user_chat_id, text=err_message)

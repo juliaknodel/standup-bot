@@ -12,7 +12,7 @@ from com_help import help
 from standups import set_standups
 from com_answer import answer
 from com_show_standups import show_standups
-from com_standup_info import show_standup_info
+from com_standup_info import com_show_standup_info
 from com_timezone import set_timezone
 from team import new_team, set_id, set_name, com_set_active_team, com_remove_team, com_leave_team, \
     com_join_connect_chats
@@ -73,7 +73,7 @@ show_standups_handler = CommandHandler('show_standups', show_standups)
 dispatcher.add_handler(show_standups_handler)
 
 # вывод информации о стендапе по его номеру
-standup_info_handler = CommandHandler('standup_info', show_standup_info)
+standup_info_handler = CommandHandler('standup_info', com_show_standup_info)
 dispatcher.add_handler(standup_info_handler)
 
 # удаление вопроса
