@@ -87,7 +87,7 @@ def set_name(update, context):
                                                             "или введите id вашей команды (/set_id [id])")
         return
 
-    team_db_id, err_message = get_team_db_id(user_chat_id, team_number=0)
+    team_db_id, err_message = get_team_db_id(user_chat_id)
 
     if not team_db_id:
         context.bot.send_message(chat_id=user_chat_id, text=err_message)
@@ -115,7 +115,7 @@ def get_new_team_document():
             'admins': [],
             'standups': [],
             'name': 'DEFAULT',
-            'timezone': -3}
+            'timezone': "-3 -0"}
 
     return team
 
@@ -156,8 +156,7 @@ def get_team_connect_chats(team_db_id):
     return connect_chats
 
 
-def get_team_db_id(user_chat_id, team_number=0):
-    # team_number - понадобится в будущем для выбора команды из списка
+def get_team_db_id(user_chat_id):
     user = collection.users.find_one({'chat_id': user_chat_id})
     if user:
         active_team_db_id, err_message = check_active_team_is_valid(user)
@@ -393,7 +392,3 @@ def get_user_username(user_chat_id):
     if not username:
         username = user.full_name
     return username
-
-
-
-

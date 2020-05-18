@@ -6,7 +6,7 @@ from query import get_active_team_standup_ids
 from query import get_standup_date_str
 
 
-def show_standup_info(update, context):
+def com_show_standup_info(update, context):
     user_chat_id = update.effective_chat.id
     try:
         parse_standup_info_command_input(context.args)
@@ -17,15 +17,8 @@ def show_standup_info(update, context):
             raise BotUserException("История стендапов пуста.\n")
         if st_number > len(st_ids):
             raise BotUserException("Стендапа с номером " + str(st_number) + " не найдено.\n")
-        st_doc = db_standups.find_one({'_id': st_ids[st_number - 1]})
-        st_date = get_standup_date_str(st_doc)
-        st_questions = st_doc['questions']
-        st_answers = st_doc['answers']
 
-        standup_info_text = generate_standup_info_text(st_number=st_number,
-                                                       st_date=st_date,
-                                                       st_questions=st_questions,
-                                                       st_answers=st_answers)
+        standup_info_text = generate_standup_info_text(st_id=st_ids[st_number - 1], st_number=st_number)
         context.bot.send_message(chat_id=user_chat_id, text=standup_info_text)
     except BotUserException as bue:
         context.bot.send_message(chat_id=user_chat_id, text=bue.message)
@@ -41,7 +34,12 @@ def parse_standup_info_command_input(com_input_args):
         raise BotUserException(com_input_args[0] + " - недопустимое значение номера стендапа.")
 
 
-def generate_standup_info_text(st_number, st_date, st_questions, st_answers):
+def generate_standup_info_text(st_id, st_number):
+    st_doc = db_standups.find_one({'_id': st_id})
+    st_date = get_standup_date_str(st_doc)
+    st_questions = st_doc['questions']
+    st_answers = st_doc['answers']
+
     info_text = "Стендап # " + str(st_number) + " от " + st_date + ".\n"
     info_text += "\n"
 
