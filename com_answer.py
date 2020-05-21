@@ -20,6 +20,8 @@ def answer(update, context):
 def write_answer_to_db(update, context):
     user_id = update.effective_chat.id
     min_args_number = 2
+    if str(user_id)[0] == '-':
+        raise BotUserException("Вы не можете отвечать на вопросы стендапа из общего чата.")
     if len(context.args) < min_args_number:
         raise BotUserException("Недостаточно аргументов.")
 

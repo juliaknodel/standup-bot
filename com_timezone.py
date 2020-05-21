@@ -15,7 +15,7 @@ def set_timezone(update, context):
 
         team_db_id, err_message = get_team_db_id(update.effective_chat.id)
         if team_db_id is False:
-            raise BaseException(err_message)
+            raise BotUserException(err_message)
         db_teams.update_one({"_id": team_db_id}, {"$set": {"timezone": new_timezone}})
         context.bot.send_message(chat_id=update.effective_chat.id, text="Часовой пояс обновлен.\n")
     except BotUserException as bue:
