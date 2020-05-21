@@ -1,7 +1,7 @@
 import telegram
 from telegram import InlineKeyboardMarkup
 
-from team import collection, is_valid_id
+from team import collection, is_valid_id, is_owner
 from team import existing_user
 from team import get_team_db_id
 from user_input import is_natural_number
@@ -15,34 +15,31 @@ db_questions = collection.questions
 def add_question(update, context):
     user_chat_id = update.effective_chat.id
 
-    # здесь будет проверка на права доступа к добавлению вопроса и
-    # соответствующее сообщение при ошибке доступа
-
-    if not existing_user(user_chat_id):
-        context.bot.send_message(chat_id=user_chat_id, text="Сначала зарегистрируйте команду (/new_team) "
-                                                            "или введите id вашей команды (/set_id [id])")
-        return
-
     team_db_id, err_message = get_team_db_id(user_chat_id)
-
     if not team_db_id:
         context.bot.send_message(chat_id=user_chat_id, text=err_message)
-    else:
-        if not context.args:
-            context.bot.send_message(chat_id=user_chat_id, text="Пожалуйста, добавьте текст вопроса"
-                                                                " после команды.")
-        else:
-            text = ' '.join(list(context.args))
-            # пока команда одна => вопросы добавляем без вопроса в какую команду
-            team_questions = get_team_questions_list(team_db_id)
-            if text in team_questions:
-                context.bot.send_message(chat_id=user_chat_id, text="В вашей команде уже есть такой вопрос")
-                return
-            question = get_new_question_document(text)
-            question_db_id = db_questions.insert_one(question).inserted_id
-            db_teams.update_one({'_id': team_db_id}, {'$addToSet': {'questions': question_db_id}})
-            context.bot.send_message(chat_id=user_chat_id, text="Был добавлен вопрос: " +
-                                                                text)
+        return
+
+    if not is_owner(team_db_id, user_chat_id=user_chat_id):
+        context.bot.send_message(chat_id=user_chat_id, text="Данное действие доступно только владельцу команды.")
+        return
+
+    if not context.args:
+        context.bot.send_message(chat_id=user_chat_id, text="Пожалуйста, добавьте текст вопроса"
+                                                            " после команды.")
+        return
+
+    text = ' '.join(list(context.args))
+    # пока команда одна => вопросы добавляем без вопроса в какую команду
+    team_questions = get_team_questions_list(team_db_id)
+    if text in team_questions:
+        context.bot.send_message(chat_id=user_chat_id, text="В вашей команде уже есть такой вопрос")
+        return
+    question = get_new_question_document(text)
+    question_db_id = db_questions.insert_one(question).inserted_id
+    db_teams.update_one({'_id': team_db_id}, {'$addToSet': {'questions': question_db_id}})
+    context.bot.send_message(chat_id=user_chat_id, text="Был добавлен вопрос: " +
+                                                        text)
 
 
 def com_remove_question(update, context):
@@ -60,18 +57,27 @@ def com_remove_question(update, context):
 
     if not team_db_id:
         context.bot.send_message(chat_id=user_chat_id, text=err_message)
-    else:
-        keyboard = get_questions_list_inline_keyboard(team_db_id)
-        context.bot.send_message(chat_id=user_chat_id, text="Выберите вопрос для удаления: ", reply_markup=keyboard)
+        return
+
+    if not is_owner(team_db_id, user_chat_id=user_chat_id):
+        context.bot.send_message(chat_id=user_chat_id, text="Данное действие доступно только владельцу команды.")
+        return
+    keyboard = get_questions_list_inline_keyboard(team_db_id)
+    context.bot.send_message(chat_id=user_chat_id, text="Выберите вопрос для удаления: ", reply_markup=keyboard)
 
 
-def delete_question(team_db_id, question_id):
+def delete_question(update, team_db_id, question_id):
+    user_chat_id = update.effective_chat.id
     team_db_id = is_valid_id(team_db_id)
     del_question_id = is_valid_id(question_id)
 
     team = db_teams.find_one({'_id': team_db_id})
     if not team:
-        err_message = 'Данная команда уже не существует'
+        err_message = 'Данная команда была удалена.'
+        return False, err_message
+
+    if not is_owner(team_db_id, user_chat_id=user_chat_id):
+        err_message = 'Данное действие доступно только владельцу команды.'
         return False, err_message
 
     db_teams.update_one({'_id': team_db_id}, {'$pull': {'questions': del_question_id}})

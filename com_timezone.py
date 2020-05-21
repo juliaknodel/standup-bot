@@ -1,11 +1,23 @@
-from team import get_team_db_id
+from team import get_team_db_id, is_owner
 from team import db_teams
 from user_input import is_integer_number
 from exception import BotUserException
 
+from settings import collection
+
+db_users = collection.users
+
 
 def set_timezone(update, context):
     try:
+        user_chat_id = update.effective_chat.id
+        team_db_id, err_message = get_team_db_id(user_chat_id)
+        if team_db_id is False:
+            raise BotUserException(err_message)
+
+        if not is_owner(team_db_id, user_chat_id=user_chat_id):
+            raise BotUserException("Данное действие доступно только владельцу команды.\n")
+
         nec_args_numb = 2
         timezone = ''.join(list(context.args))
         timezone = timezone.split(':')
@@ -13,9 +25,6 @@ def set_timezone(update, context):
             raise BotUserException("Неверный формат ввода часового пояса.\n")
         new_timezone = get_timezone_db_format(hour=timezone[0], minute=timezone[1])
 
-        team_db_id, err_message = get_team_db_id(update.effective_chat.id)
-        if team_db_id is False:
-            raise BotUserException(err_message)
         db_teams.update_one({"_id": team_db_id}, {"$set": {"timezone": new_timezone}})
         context.bot.send_message(chat_id=update.effective_chat.id, text="Часовой пояс обновлен.\n")
     except BotUserException as bue:

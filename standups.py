@@ -4,7 +4,7 @@ from questions import get_team_db_id
 from questions import get_team_questions_list
 from questions import team_questions_text
 from settings import collection, jobs
-from team import get_team_connect_chats, get_user_username, is_valid_id
+from team import get_team_connect_chats, get_user_username, is_valid_id, is_owner
 from team import existing_user
 from user_input import is_natural_number
 from query import db_teams
@@ -15,11 +15,21 @@ db_questions = collection.questions
 
 def set_standups(update, context):
     chat_id = update.effective_chat.id
+    team_db_id, err_message = get_team_db_id(chat_id)
+
+    if not team_db_id:
+        context.bot.send_message(chat_id=chat_id, text=err_message)
+        return
+
+    if not is_owner(team_db_id, user_chat_id=chat_id):
+        context.bot.send_message(chat_id=chat_id, text="Данное действие доступно только владельцу команды.")
+        return
+
     err_message = check_standups_input(chat_id, context.args)
     if err_message is not None:
         context.bot.send_message(chat_id=chat_id, text=err_message)
         return
-    team_db_id, err_message = get_team_db_id(chat_id)
+
     write_schedule_to_db(context.args, team_db_id)
 
     # остановим старые работы этой команды, если они были

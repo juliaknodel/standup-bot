@@ -4,6 +4,7 @@ from team import set_active_team, remove_team_member
 from team import remove_team
 from settings import collection
 from bson import ObjectId
+
 db_standups = collection.standups
 
 
@@ -22,13 +23,13 @@ def buttons_handler(update, context):
         status, message = set_active_team(update, context, team_num=data[1], team_db_id=data[2])
 
     elif data[0] == 'DEL_Q':
-        status, message = delete_question(team_db_id=data[1], question_id=data[2])
+        status, message = delete_question(update, team_db_id=data[1], question_id=data[2])
 
     elif data[0] == 'DEL_MEMBER':
         status, message = remove_team_member(team_db_id=data[2], user_db_id=data[1])
 
     elif data[0] == 'REMOVE_TEAM':
-        status, message = remove_team(team_db_id=data[1])
+        status, message = remove_team(update, team_db_id=data[1])
 
     elif data[0] == "SHOW_STANDUPS":
         status, message = True, generate_standup_info_text(st_id=data[1], st_number=data[2])
