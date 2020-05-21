@@ -33,6 +33,7 @@ def new_team(update, context):
     db_teams.update_one({'_id': team_db_id}, {'$addToSet': {'members': admin_db_id}})
     db_teams.update_one({'_id': team_db_id}, {'$addToSet': {'connect_chats': admin_db_id}})
     db_teams.update_one({'_id': team_db_id}, {'$addToSet': {'admins': admin_db_id}})
+    db_teams.update_one({'_id': team_db_id}, {'$set': {'owner': admin_db_id}})
     db_users.update_one({'_id': admin_db_id}, {'$addToSet': {'teams': team_db_id}})
     db_users.update_one({'_id': admin_db_id}, {'$set': {'active_team': team_db_id}})
     db_users.update_one({'_id': admin_db_id}, {'$set': {'id': admin_id}})
@@ -112,6 +113,7 @@ def get_new_team_document():
             'questions': [],
             'schedule': [],
             'connect_chats': [],
+            'owner': [],
             'admins': [],
             'standups': [],
             'name': 'DEFAULT',
@@ -342,6 +344,10 @@ def remove_team_member(team_db_id, user_db_id):
     user = db_users.find_one({'_id': user_db_id})
     if not user or not len(user['teams']):
         message = "Вы пока не состоите ни в одной команде"
+        return False, message
+
+    if team['owner'] == user_db_id:
+        message = "Вы владелец команды. Пожалуйста, сначала передайте права на управление другому участнику."
         return False, message
 
     if len(team['members']) == 1:
