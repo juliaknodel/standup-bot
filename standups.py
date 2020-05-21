@@ -196,7 +196,8 @@ def new_standup(questions, team_db_id):
 
 def get_title(team_db_id):
     team_name = db_teams.find_one({'_id': team_db_id})['name']
-    title = 'ID команды: ' + str(team_db_id) + '\nНазвание команды: ' + str(team_name) + \
+
+    title = 'Название команды:\n' + str(team_name) + '\n\nID:\n' + str(team_db_id) + \
             '\n\n'
     return title
 
