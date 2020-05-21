@@ -1,3 +1,4 @@
+from com_set_owner import set_owner
 from questions import delete_question
 from team import set_active_team, remove_team_member
 from team import remove_team
@@ -31,6 +32,9 @@ def buttons_handler(update, context):
 
     elif data[0] == "SHOW_STANDUPS":
         status, message = True, generate_standup_info_text(st_id=data[1], st_number=data[2])
+
+    elif data[0] == 'SET_OWNER':
+        status, message = set_owner(update, team_db_id=data[1], new_owner_db_id=data[2])
 
     query.edit_message_text(text=message)
 
