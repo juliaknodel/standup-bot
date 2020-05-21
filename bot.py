@@ -3,6 +3,7 @@ from telegram.ext import Updater, CallbackQueryHandler
 import logging
 from telegram.ext import CommandHandler
 
+from com_set_owner import com_set_owner
 from buttons_handler import buttons_handler
 from questions import add_question
 from questions import show_questions_list
@@ -94,5 +95,9 @@ dispatcher.add_handler(join_connect_chats_handler)
 # обновление часового пояса
 timezone_handler = CommandHandler('timezone', set_timezone)
 dispatcher.add_handler(timezone_handler)
+
+# смена владельца команды
+set_owner_handler = CommandHandler('set_owner', com_set_owner)
+dispatcher.add_handler(set_owner_handler)
 
 updater.start_polling()

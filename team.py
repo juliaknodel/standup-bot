@@ -236,12 +236,18 @@ def set_active_team(update, context, team_num, team_db_id):
         return False, message
 
     active_team_db_id = user_teams[int(team_num)]
-    active_team_name = db_teams.find_one({'_id': active_team_db_id})['name']
+    active_team = db_teams.find_one({'_id': active_team_db_id})
+    active_team_name = active_team['name']
+    active_team_owner_id = active_team['owner']
+    active_team_owner_chat_id = db_users.find_one({'_id': active_team_owner_id})['chat_id']
+    active_team_owner_username = get_user_username(active_team_owner_chat_id)
 
     db_users.update_one({'chat_id': user_chat_id}, {"$set": {"active_team": active_team_db_id}})
 
-    message = "ID активной команды: " + str(active_team_db_id) + '\n\n' + \
-              "Название активной команды: " + str(active_team_name)
+    message = "Активная команда:" + '\n\n' + \
+              "Название: \n" + str(active_team_name) + '\n\n' + \
+              "Владелец: \n" + str(active_team_owner_username) + '\n\n' + \
+              "ID: \n" + str(active_team_db_id)
     return True, message
 
 
@@ -389,12 +395,19 @@ def com_join_connect_chats(update, context):
                              team_name)
 
 
-def get_user_username(user_chat_id):
-    user_id = db_users.find_one({'chat_id': user_chat_id})['id']
+def get_user_username(chat_id):
 
-    chat_member = bot.getChatMember(user_chat_id, user_id)
-    user = chat_member.user
-    username = user.username
-    if not username:
-        username = user.full_name
+    user_id = db_users.find_one({'chat_id': chat_id})['id']
+
+    if str(chat_id)[0] == '-':
+        chat = bot.getChat(chat_id)
+        username = chat.username
+        if not username:
+            username = chat.title
+    else:
+        chat_member = bot.getChatMember(chat_id, user_id)
+        user = chat_member.user
+        username = user.username
+        if not username:
+            username = user.full_name
     return username
