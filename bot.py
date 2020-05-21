@@ -3,6 +3,7 @@ from telegram.ext import Updater, CallbackQueryHandler
 import logging
 from telegram.ext import CommandHandler
 
+from com_leave_connect_chats import com_leave_connect_chats
 from com_set_owner import com_set_owner
 from buttons_handler import buttons_handler
 from questions import add_question
@@ -15,8 +16,13 @@ from com_answer import answer
 from com_show_standups import show_standups
 from com_standup_info import com_show_standup_info
 from com_timezone import set_timezone
-from team import new_team, set_id, set_name, com_set_active_team, com_remove_team, com_leave_team, \
-    com_join_connect_chats
+from team import new_team
+from team import set_id
+from team import set_name
+from team import com_set_active_team
+from team import com_remove_team
+from team import com_leave_team
+from team import com_join_connect_chats
 
 from secrets import TOKEN
 
@@ -88,9 +94,13 @@ dispatcher.add_handler(remove_team_handler)
 leave_team_handler = CommandHandler('leave_team', com_leave_team)
 dispatcher.add_handler(leave_team_handler)
 
-# выход из команды
+# присоединиться к чатам для рассылки результатов стендапов
 join_connect_chats_handler = CommandHandler('join_connect_chats', com_join_connect_chats)
 dispatcher.add_handler(join_connect_chats_handler)
+
+# перестать получать результаты стендапов
+leave_connect_chats_handler = CommandHandler('leave_connect_chats', com_leave_connect_chats)
+dispatcher.add_handler(leave_connect_chats_handler)
 
 # обновление часового пояса
 timezone_handler = CommandHandler('timezone', set_timezone)
