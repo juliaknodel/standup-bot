@@ -12,20 +12,22 @@ CALLBACK_SHOW_STANDUPS = "SHOW_STANDUPS"
 def show_standups(update, context):
     user_chat_id = update.effective_chat.id
     try:
-        if len(context.args) != 1:
-            raise BotUserException("На вход ожидается один аргумент: число стендапов.\n")
-        if not is_natural_number(context.args[0]):
-            raise BotUserException(context.args[0] + " - недопустимое значение числа стендапов.\n")
+        show_sts_number = 10
+        if len(context.args) == 1:
+            if not is_natural_number(context.args[0]):
+                raise BotUserException(context.args[0] + " - недопустимое значение числа стендапов.\n")
+            show_sts_number = int(context.args[0])
+        elif len(context.args) > 1:
+            raise BotUserException("Недопустимое число аргументов.\n")
+
         st_ids = get_active_team_standup_ids(user_chat_id)
         if len(st_ids) == 0:
             raise BotUserException("История стендапов пуста.\n")
 
-        buttons_border_number = 11
-        if len(st_ids) <= buttons_border_number or int(context.args[0]) <= buttons_border_number:
-            key = show_standups_buttons(st_ids, int(context.args[0]))
-            context.bot.send_message(chat_id=update.effective_chat.id,
-                                     text="Стендапы: ",
-                                     reply_markup=key)
+        buttons_max_number = 11
+        if len(st_ids) <= buttons_max_number or show_sts_number <= buttons_max_number:
+            key = show_standups_buttons(st_ids, show_sts_number)
+            context.bot.send_message(chat_id=update.effective_chat.id, text="Стендапы: ", reply_markup=key)
         else:
             bot_answer_text = ""
             for st_ind in range(-1, max(-len(st_ids), -int(context.args[0])) - 1, -1):
