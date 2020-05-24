@@ -30,6 +30,9 @@ def set_standups(update, context):
         context.bot.send_message(chat_id=chat_id, text=err_message)
         return
 
+    team = db_teams.find_one({'_id': team_db_id})
+    prev_standups = team['standups']
+    db_teams.update_one({'_id': team_db_id}, {'$set': {'last_send_standup': len(prev_standups) - 1}})
     write_schedule_to_db(context.args, team_db_id)
 
     # остановим старые работы этой команды, если они были
@@ -94,8 +97,15 @@ def standup_job(context):
 
 def send_answers_job(context):
     team_db_id = context.job.context
-    team_standups = db_teams.find_one({'_id': team_db_id})['standups']
-    standup_db_id = team_standups[-1]
+
+    team = db_teams.find_one({'_id': team_db_id})
+    last_send_standup = team['last_send_standup']
+    db_teams.update_one({'_id': team_db_id}, {'$set': {'last_send_standup': last_send_standup + 1}})
+
+    team = db_teams.find_one({'_id': team_db_id})
+    team_standups = team['standups']
+    last_send_standup = team['last_send_standup']
+    standup_db_id = team_standups[last_send_standup]
     send_standup_to_connect_chats(team_db_id, standup_db_id, context)
 
 
