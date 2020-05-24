@@ -16,6 +16,7 @@ from com_answer import answer
 from com_show_standups import show_standups
 from com_standup_info import com_show_standup_info
 from com_timezone import set_timezone
+from com_duration import com_duration
 from team import new_team
 from team import set_id
 from team import set_name
@@ -109,5 +110,9 @@ dispatcher.add_handler(timezone_handler)
 # смена владельца команды
 set_owner_handler = CommandHandler('set_owner', com_set_owner)
 dispatcher.add_handler(set_owner_handler)
+
+# изменение продолжительности стендапа
+duration_handler = CommandHandler('duration', com_duration)
+dispatcher.add_handler(duration_handler)
 
 updater.start_polling()

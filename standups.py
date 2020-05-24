@@ -55,9 +55,11 @@ def get_standup_dates_from_schedule(schedule):
     return get_standup_dates(next_week_dates)
 
 
-def create_first_standup(team_db_id, context, chat_id, update, time_to_answer=datetime.timedelta(seconds=30)):
+def create_first_standup(team_db_id, context, chat_id, update):
     team = db_teams.find_one({'_id': team_db_id})
     schedule = team['schedule']
+    duration = team['duration'].split(' ')
+    duration = datetime.timedelta(hours=int(duration[0]), minutes=int(duration[1]))
 
     # получаем словарь дата: интервал всех ближайших стендапов на каждый из дней недели
     standup_dates = get_standup_dates_from_schedule(schedule)
@@ -74,7 +76,7 @@ def create_first_standup(team_db_id, context, chat_id, update, time_to_answer=da
                                               context=team_db_id)
         send_questions_jobs.append(job)
 
-        send_answers_date = date + time_to_answer
+        send_answers_date = date + duration
 
         job = context.job_queue.run_repeating(send_answers_job, interval=interval,
                                               first=send_answers_date + delta, context=team_db_id)
