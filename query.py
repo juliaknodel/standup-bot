@@ -1,3 +1,4 @@
+from exception import BotUserException
 from standups import get_team_db_id
 from settings import collection
 
@@ -10,7 +11,7 @@ def get_active_team_standup_ids(user_chat_id):
     # TODO: если get_team_db_id в предыдущей строке все-таки будет бросать исключение,
     #  то следующие две строчки можно убрать
     if team_db_id is False:
-        raise BaseException(err_message)
+        raise BotUserException(err_message)
     return db_teams.find_one({'_id': team_db_id})['standups']
 
 

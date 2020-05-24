@@ -1,8 +1,11 @@
+from com_set_owner import set_owner
 from questions import delete_question
 from team import set_active_team, remove_team_member
 from team import remove_team
+from team import get_user_username
 from settings import collection
 from bson import ObjectId
+
 db_standups = collection.standups
 
 
@@ -21,16 +24,19 @@ def buttons_handler(update, context):
         status, message = set_active_team(update, context, team_num=data[1], team_db_id=data[2])
 
     elif data[0] == 'DEL_Q':
-        status, message = delete_question(team_db_id=data[1], question_id=data[2])
+        status, message = delete_question(update, team_db_id=data[1], question_id=data[2])
 
     elif data[0] == 'DEL_MEMBER':
         status, message = remove_team_member(team_db_id=data[2], user_db_id=data[1])
 
     elif data[0] == 'REMOVE_TEAM':
-        status, message = remove_team(team_db_id=data[1])
+        status, message = remove_team(update, team_db_id=data[1])
 
     elif data[0] == "SHOW_STANDUPS":
         status, message = True, generate_standup_info_text(st_id=data[1], st_number=data[2])
+
+    elif data[0] == 'SET_OWNER':
+        status, message = set_owner(update, team_db_id=data[1], new_owner_db_id=data[2])
 
     query.edit_message_text(text=message)
 
@@ -56,8 +62,9 @@ def generate_standup_info_text(st_id, st_number):
         for st_answer in st_answers:
             q_number = str(st_answer['question_num'])
             q_answer = st_answer['answer']
-            author_id = str(st_answer['id'])
-            info_text += q_number + ". " + q_answer + " (" + author_id + ")\n"
+            author_chat_id = st_answer['id']
+            author_username = get_user_username(author_chat_id)
+            info_text += q_number + ". " + q_answer + " (" + author_username + ")\n"
 
     return info_text
 

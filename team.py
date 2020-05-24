@@ -33,6 +33,7 @@ def new_team(update, context):
     db_teams.update_one({'_id': team_db_id}, {'$addToSet': {'members': admin_db_id}})
     db_teams.update_one({'_id': team_db_id}, {'$addToSet': {'connect_chats': admin_db_id}})
     db_teams.update_one({'_id': team_db_id}, {'$addToSet': {'admins': admin_db_id}})
+    db_teams.update_one({'_id': team_db_id}, {'$set': {'owner': admin_db_id}})
     db_users.update_one({'_id': admin_db_id}, {'$addToSet': {'teams': team_db_id}})
     db_users.update_one({'_id': admin_db_id}, {'$set': {'active_team': team_db_id}})
     db_users.update_one({'_id': admin_db_id}, {'$set': {'id': admin_id}})
@@ -50,6 +51,7 @@ def set_id(update, context):
     if not context.args:
         context.bot.send_message(chat_id=user_chat_id, text="Пожалуйста, после команды введите id или "
                                                             "зарегистрируйте новую команду")
+        return
 
     team_db_id = is_valid_id(context.args[0])
     if not team_db_id or not existing_team(team_db_id):
@@ -79,7 +81,6 @@ def set_id(update, context):
 
 
 def set_name(update, context):
-    # TODO проверка что пользователь является администратором
     user_chat_id = update.effective_chat.id
 
     if not existing_user(user_chat_id):
@@ -91,6 +92,10 @@ def set_name(update, context):
 
     if not team_db_id:
         context.bot.send_message(chat_id=user_chat_id, text=err_message)
+        return
+
+    if not is_owner(team_db_id, user_chat_id=user_chat_id):
+        context.bot.send_message(chat_id=user_chat_id, text="Данное действие доступно только владельцу команды.")
         return
 
     if not context.args:
@@ -112,11 +117,13 @@ def get_new_team_document():
             'questions': [],
             'schedule': [],
             'connect_chats': [],
+            'owner': [],
             'admins': [],
             'standups': [],
             'name': 'DEFAULT',
-            'timezone': "-3 -0"}
-
+            'timezone': '-3 -0',
+            'duration': '1 0',
+            'last_send_standup': -1}
     return team
 
 
@@ -170,7 +177,7 @@ def check_active_team_is_valid(user):
     active_team_db_id = user['active_team']
     user_teams = user['teams']
     if active_team_db_id not in user_teams:
-        err_message = 'Список ваших команд изменился - выберите новую активную команду'
+        err_message = 'Список ваших команд изменился - выберите новую активную команду (/set_active_team)'
         return False, err_message
     return active_team_db_id, 'OK'
 
@@ -234,22 +241,33 @@ def set_active_team(update, context, team_num, team_db_id):
         return False, message
 
     active_team_db_id = user_teams[int(team_num)]
-    active_team_name = db_teams.find_one({'_id': active_team_db_id})['name']
+    active_team = db_teams.find_one({'_id': active_team_db_id})
+    active_team_name = active_team['name']
+    active_team_owner_id = active_team['owner']
+    active_team_owner_chat_id = db_users.find_one({'_id': active_team_owner_id})['chat_id']
+    active_team_owner_username = get_user_username(active_team_owner_chat_id)
 
     db_users.update_one({'chat_id': user_chat_id}, {"$set": {"active_team": active_team_db_id}})
 
-    message = "ID активной команды: " + str(active_team_db_id) + '\n\n' + \
-              "Название активной команды: " + str(active_team_name)
+    message = "Активная команда:" + '\n\n' + \
+              "Название: \n" + str(active_team_name) + '\n\n' + \
+              "Владелец: \n" + str(active_team_owner_username) + '\n\n' + \
+              "ID: \n" + str(active_team_db_id)
     return True, message
 
 
 def get_teams_able_to_remove_list_inline_keyboard(user_db_id):
     user_teams_list = db_users.find_one({'_id': user_db_id})['teams']
+
     teams_names_list = [db_teams.find_one({'_id': team_id})['name'] for team_id in user_teams_list]
+    teams_owners_list = [db_teams.find_one({'_id': team_id})['owner'] for team_id in user_teams_list]
     buttons = []
     for team_num in range(len(user_teams_list)):
         team_name = teams_names_list[team_num]
         team_db_id = user_teams_list[team_num]
+        team_owner = teams_owners_list[team_num]
+        if team_owner != user_db_id:
+            continue
         # TODO перед добавлением проверяем, что юзер состоит в списке администраторов
         send_data = 'REMOVE_TEAM' + ' ' + str(team_db_id)
         button = telegram.InlineKeyboardButton(team_name, url=None,
@@ -284,16 +302,21 @@ def com_remove_team(update, context):
     context.bot.send_message(chat_id=user_chat_id, text="Команды доступные для удаления: ", reply_markup=key)
 
 
-def remove_team(team_db_id):
+def remove_team(update, team_db_id):
+    user_chat_id = update.effective_chat.id
 
     team_db_id = is_valid_id(team_db_id)
     if not team_db_id:
-        message = "Ваш список команд изменился"
+        message = "Ваш список команд изменился."
         return False, message
 
     team = db_teams.find_one({'_id': team_db_id})
     if not team:
-        message = "Такая команда не существует"
+        message = "Такая команда не существует."
+        return False, message
+
+    if not is_owner(team_db_id, user_chat_id=user_chat_id):
+        message = "Данное действие доступно только владельцу команды."
         return False, message
 
     name = team['name']
@@ -344,8 +367,13 @@ def remove_team_member(team_db_id, user_db_id):
         message = "Вы пока не состоите ни в одной команде"
         return False, message
 
+    if team['owner'] == user_db_id:
+        message = "Вы владелец команды. \n\n" \
+                  "Воспользуйтесь командой /set_owner, чтобы передать права на управление другому участнику."
+        return False, message
+
     if len(team['members']) == 1:
-        message = "Вы последний участник команды. Пожалуйста, воспользуйтесь командой /remove_team, чтобы удалить её."
+        message = "Вы последний участник команды. Воспользуйтесь командой /remove_team, чтобы удалить её."
         return False, message
 
     # TODO проверка что администратор (тк могли удалить, а кнопка нажмется позднее, чем была вызвана)
@@ -383,12 +411,33 @@ def com_join_connect_chats(update, context):
                              team_name)
 
 
-def get_user_username(user_chat_id):
-    user_id = db_users.find_one({'chat_id': user_chat_id})['id']
+def get_user_username(chat_id):
 
-    chat_member = bot.getChatMember(user_chat_id, user_id)
-    user = chat_member.user
-    username = user.username
-    if not username:
-        username = user.full_name
+    user_id = db_users.find_one({'chat_id': chat_id})['id']
+
+    if str(chat_id)[0] == '-':
+        chat = bot.getChat(chat_id)
+        username = chat.username
+        if not username:
+            username = chat.title
+    else:
+        chat_member = bot.getChatMember(chat_id, user_id)
+        user = chat_member.user
+        username = user.username
+        if not username:
+            username = user.full_name
     return username
+
+
+def is_owner(team_db_id, user_db_id=False, user_chat_id=False):
+
+    team = db_teams.find_one({'_id': team_db_id})
+    owner_id = team['owner']
+    if user_chat_id:
+        user_db_id = db_users.find_one({'chat_id': user_chat_id})['_id']
+
+    if owner_id == user_db_id:
+        return True
+    else:
+        return False
+
