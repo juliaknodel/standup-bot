@@ -2,6 +2,7 @@ from com_set_owner import set_owner
 from questions import delete_question
 from team import set_active_team, remove_team_member
 from team import remove_team
+from team import get_user_username
 from settings import collection
 from bson import ObjectId
 
@@ -61,8 +62,9 @@ def generate_standup_info_text(st_id, st_number):
         for st_answer in st_answers:
             q_number = str(st_answer['question_num'])
             q_answer = st_answer['answer']
-            author_id = str(st_answer['id'])
-            info_text += q_number + ". " + q_answer + " (" + author_id + ")\n"
+            author_chat_id = st_answer['id']
+            author_username = get_user_username(author_chat_id)
+            info_text += q_number + ". " + q_answer + " (" + author_username + ")\n"
 
     return info_text
 

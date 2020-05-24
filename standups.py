@@ -30,6 +30,9 @@ def set_standups(update, context):
         context.bot.send_message(chat_id=chat_id, text=err_message)
         return
 
+    team = db_teams.find_one({'_id': team_db_id})
+    prev_standups = team['standups']
+    db_teams.update_one({'_id': team_db_id}, {'$set': {'last_send_standup': len(prev_standups) - 1}})
     write_schedule_to_db(context.args, team_db_id)
 
     # остановим старые работы этой команды, если они были
@@ -55,9 +58,11 @@ def get_standup_dates_from_schedule(schedule):
     return get_standup_dates(next_week_dates)
 
 
-def create_first_standup(team_db_id, context, chat_id, update, time_to_answer=datetime.timedelta(seconds=30)):
+def create_first_standup(team_db_id, context, chat_id, update):
     team = db_teams.find_one({'_id': team_db_id})
     schedule = team['schedule']
+    duration = team['duration'].split(' ')
+    duration = datetime.timedelta(hours=int(duration[0]), minutes=int(duration[1]))
 
     # получаем словарь дата: интервал всех ближайших стендапов на каждый из дней недели
     standup_dates = get_standup_dates_from_schedule(schedule)
@@ -74,7 +79,7 @@ def create_first_standup(team_db_id, context, chat_id, update, time_to_answer=da
                                               context=team_db_id)
         send_questions_jobs.append(job)
 
-        send_answers_date = date + time_to_answer
+        send_answers_date = date + duration
 
         job = context.job_queue.run_repeating(send_answers_job, interval=interval,
                                               first=send_answers_date + delta, context=team_db_id)
@@ -92,8 +97,15 @@ def standup_job(context):
 
 def send_answers_job(context):
     team_db_id = context.job.context
-    team_standups = db_teams.find_one({'_id': team_db_id})['standups']
-    standup_db_id = team_standups[-1]
+
+    team = db_teams.find_one({'_id': team_db_id})
+    last_send_standup = team['last_send_standup']
+    db_teams.update_one({'_id': team_db_id}, {'$set': {'last_send_standup': last_send_standup + 1}})
+
+    team = db_teams.find_one({'_id': team_db_id})
+    team_standups = team['standups']
+    last_send_standup = team['last_send_standup']
+    standup_db_id = team_standups[last_send_standup]
     send_standup_to_connect_chats(team_db_id, standup_db_id, context)
 
 
@@ -169,10 +181,9 @@ def check_standups_input(chat_id, args):
         else:
             standup_days.append(args[day_ind].upper())
 
-        if is_time_value(args[time_ind]) is False:
+        if not is_time_value(args[time_ind]):
             return args[time_ind] + " - недопустимое значение времени."
-
-        if is_natural_number(args[period_ind]) is False:
+        if not is_natural_number(args[period_ind]):
             return args[period_ind] + " - недопустимое значение периода стендапа."
 
 
@@ -243,8 +254,11 @@ def write_schedule_to_db(args, team_db_id):
 
 def get_time(time_str):
     time = time_str.split(':')
-    hours = time[0]
-    minutes = time[1]
+    hours, minutes = time[0], time[1]
+    if len(hours) == 2 and hours[0] == '0':   # if user send hour as "09", delete zero
+        hours = hours[1]
+    if len(minutes) == 2 and minutes[0] == '0':    # if user send minute as "09" (and etc), delete first zero
+        minutes = minutes[1]
     return hours, minutes
 
 
@@ -271,12 +285,16 @@ def get_time_delimiter_ind(time, time_delimiter):
 
 def check_hours(time, time_delimiter_ind):
     hours = time[0:time_delimiter_ind]
+    if len(hours) == 2 and hours[0] == '0':    # if user send hour as "09" (and etc), delete first zero
+        hours = hours[1]
     if int(hours) < 0 or int(hours) >= 24:
         raise ValueError
 
 
 def check_minutes(time, time_delimiter_ind):
     minutes = time[time_delimiter_ind + 1:len(time)]
+    if len(minutes) == 2 and minutes[0] == '0':    # if user send minute as "09" (and etc), delete first zero
+        minutes = minutes[1]
     if int(minutes) < 0 or int(minutes) >= 60:
         raise ValueError
 

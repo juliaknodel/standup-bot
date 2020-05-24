@@ -121,8 +121,9 @@ def get_new_team_document():
             'admins': [],
             'standups': [],
             'name': 'DEFAULT',
-            'timezone': "-3 -0"}
-
+            'timezone': '-3 -0',
+            'duration': '1 0',
+            'last_send_standup': -1}
     return team
 
 
