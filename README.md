@@ -12,3 +12,10 @@
   + Какие имеются сложности в достижении результатов?
 
 Свои вопросы и дни проведения собраний вы, разумеется, сможете настроить сами.
+
+
+## Команда разработчиков:
++ Кнодель Юлия  - https://github.com/juliaknodel
++ Приймак Евгений - https://github.com/eugenepriymak
++ Дэн Суньсиньлэ - https://github.com/qiqiisprincess
++ Юань Шуци - https://github.com/yuanshuqi 
